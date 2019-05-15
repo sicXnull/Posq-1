@@ -560,7 +560,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-blockmaxcost=<n>", strprintf(_("Set maximum block cost (default: %d)"), DEFAULT_BLOCK_MAX_COST));
     strUsage += HelpMessageOpt("-blockprioritysize=<n>", strprintf(_("Set maximum size of high-priority/low-fee transactions in bytes (default: %d)"), DEFAULT_BLOCK_PRIORITY_SIZE));
     strUsage += HelpMessageOpt("-blacklistaddress=<addrs>", _("Don't mine any blocks with transactions from there addresses separated by commas (default: none)"));
-    strUsage += HelpMessageOpt("-whitelisttransactions=<txhash>", _("Allow these transaction IDs from blacklisted addresses (default: none)"));
+    strUsage += HelpMessageOpt("-whitelisttransactions=<txhash>", _("Allow these transaction IDs from blacklisted addresses separated by commas (default: none)"));
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
@@ -881,8 +881,20 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     for (string addrString : addrStrings) {
         boost::trim(addrString);
         CTxDestination dest = DecodeDestination(addrString);
-        LogPrintf("Loaded blacklisted address %s\n", EncodeDestination(dest));
-        setBlacklistedAddresses.insert(dest);
+        if (dest.type() != typeid(CNoDestination)) {
+            LogPrintf("Loaded blacklisted address %s\n", EncodeDestination(dest));
+            setBlacklistedAddresses.insert(dest);
+        }
+    }
+
+    vector<string> txidStrings;
+    boost::split(txidStrings, mapArgs["-whitelisttransactions"], [](char c){return c == ',';});
+    for (string txidString : txidStrings) {
+        boost::trim(txidString);
+        if (txidString.length() != 64) { continue; }
+        uint256 txid(txidString);
+        LogPrintf("Loaded whitelisted transaction %s\n", txid.ToString());
+        setWhitelistedTXIDs.insert(txid);
     }
 
     // ********************************************************* Step 3: parameter-to-internal-flags
