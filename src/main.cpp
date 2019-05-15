@@ -115,7 +115,8 @@ map<uint256, COrphanTx> mapOrphanTransactions;
 map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 map<uint256, int64_t> mapRejectedBlocks;
 map<uint256, int64_t> mapZerocoinspends; //txid, time received
-
+std::set<CTxDestination> setBlacklistedAddresses;
+std::set<uint256> setWhitelistedTXIDs;
 
 void EraseOrphansFor(NodeId peer);
 
@@ -2385,6 +2386,16 @@ bool CheckInputs(const CTransaction& tx, CValidationState& state, const CCoinsVi
             if (!MoneyRange(coins->vout[prevout.n].nValue) || !MoneyRange(nValueIn))
                 return state.DoS(100, error("CheckInputs() : txin values out of range"),
                     REJECT_INVALID, "bad-txns-inputvalues-outofrange");
+
+
+            if (setWhitelistedTXIDs.find(tx.GetHash()) == setWhitelistedTXIDs.end()) {
+                CTxDestination destinationFrom;
+                if (ExtractDestination(coins->vout[prevout.n].scriptPubKey, destinationFrom)) {
+                    if (setBlacklistedAddresses.find(destinationFrom) != setBlacklistedAddresses.end()) {
+                        return false;
+                    }
+                }
+            }
         }
 
         if (!tx.IsCoinStake()) {
@@ -3201,7 +3212,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         }
     }
 
-    
+
     // delete old entries
     for (auto it = mapStakeSpent.begin(); it != mapStakeSpent.end();) {
         if (it->second < pindex->nHeight - Params().MaxReorganizationDepth()) {
@@ -3212,7 +3223,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             it++;
         }
     }
-    
+
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
