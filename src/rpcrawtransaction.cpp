@@ -118,10 +118,13 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry, 
             CBlockIndex* pindex = (*mi).second;
             if (chainActive.Contains(pindex)) {
                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
+                entry.push_back(Pair("height", pindex->nHeight));
                 entry.push_back(Pair("time", pindex->GetBlockTime()));
                 entry.push_back(Pair("blocktime", pindex->GetBlockTime()));
-            } else
+            } else {
                 entry.push_back(Pair("confirmations", 0));
+                entry.push_back(Pair("height", -1));
+            }
         }
     }
 
@@ -134,19 +137,19 @@ UniValue searchrawtransactions(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 4)
         throw runtime_error("searchrawtransactions <address> [verbose=1] [skip=0] [count=100]\n");
-    
+
     if (!fAddrIndex)
         throw JSONRPCError(RPC_MISC_ERROR, "Address index not enabled");
-    
+
     if (!IsValidDestinationString(params[0].get_str()))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
 
     CTxDestination dest = DecodeDestination(params[0].get_str());
-    
+
     std::set<CExtDiskTxPos> setpos;
     if (!FindTransactionsByDestination(dest, setpos))
         throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot search for address");
-    
+
     int nSkip = 0;
     int nCount = 100;
     bool fVerbose = true;
@@ -156,17 +159,17 @@ UniValue searchrawtransactions(const UniValue& params, bool fHelp)
         nSkip = params[2].get_int();
     if (params.size() > 3)
         nCount = params[3].get_int();
-    
+
     if (nSkip < 0)
         nSkip += setpos.size();
     if (nSkip < 0)
         nSkip = 0;
     if (nCount < 0)
         nCount = 0;
-    
+
     std::set<CExtDiskTxPos>::const_iterator it = setpos.begin();
     while (it != setpos.end() && nSkip--) it++;
-    
+
     UniValue result(UniValue::VARR);
     while (it != setpos.end() && nCount--) {
         CTransaction tx;
@@ -269,7 +272,7 @@ UniValue getrawtransaction(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
 
     if (!fVerbose) {
-        string strHex = EncodeHexTx(tx, PROTOCOL_VERSION | RPCSerializationFlags()); 
+        string strHex = EncodeHexTx(tx, PROTOCOL_VERSION | RPCSerializationFlags());
         return strHex;
     }
 
@@ -332,7 +335,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
             const UniValue& input = inputs[inx];
             if (!IsValidDestinationString(input.get_str()))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Phore address: ") + input.get_str());
-            
+
             CTxDestination address = DecodeDestination(input.get_str());
             if (setAddress.count(address))
                 throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ") + input.get_str());
@@ -457,7 +460,7 @@ UniValue createrawtransaction(const UniValue& params, bool fHelp)
     BOOST_FOREACH(const string& name_, addrList) {
         if (!IsValidDestinationString(name_))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid Phore address: ")+name_);
-        
+
         CTxDestination address = DecodeDestination(name_);
 
         if (setAddress.count(address))
