@@ -1,4 +1,4 @@
-Phore Core integration/staging repository
+Phore Core integration/sddtaging repository
 =====================================
 
 [![Build Status](https://travis-ci.org/phoreproject/Phore.svg?branch=master)](https://travis-ci.org/phoreproject/Phore)
