@@ -1,7 +1,9 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2015-2017 The PIVX developers
-// Distributed under the MIT software license, see the accompanying
+// Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
+// Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "merkleblock.h"
@@ -128,7 +130,7 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256>& vMatch)
         return 0;
     // check for excessively high numbers of transactions
     if (nTransactions > MAX_BLOCK_SIZE_CURRENT / 60) // 60 is the lower bound for the size of a serialized CTransaction
-        return uint256();
+        return 0;
     // there can never be more hashes provided than one for every txid
     if (vHash.size() > nTransactions)
         return 0;

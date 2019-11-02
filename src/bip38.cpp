@@ -1,5 +1,6 @@
-// Copyright (c) 2017 The PIVX Core developers
-// Distributed under the MIT software license, see the accompanying
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
+// Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "bip38.h"
@@ -128,8 +129,10 @@ std::string BIP38_Encrypt(std::string strAddress, std::string strPassphrase, uin
     return EncodeBase58(encryptedKey.begin(), encryptedKey.begin() + 43);
 }
 
-bool BIP38_Decrypt(std::string strPassphrase, std::string strKey, uint256& privKey, bool& fCompressed)
+bool BIP38_Decrypt(std::string strPassphrase, std::string strEncryptedKey, uint256& privKey, bool& fCompressed)
 {
+    std::string strKey = DecodeBase58(strEncryptedKey.c_str());
+
     //incorrect encoding of key, it must be 39 bytes - and another 4 bytes for base58 checksum
     if (strKey.size() != (78 + 8))
         return false;
@@ -233,7 +236,7 @@ bool BIP38_Decrypt(std::string strPassphrase, std::string strKey, uint256& privK
     CKey k;
     k.Set(privKey.begin(), privKey.end(), fCompressed);
     CPubKey pubkey = k.GetPubKey();
-    string address = EncodeDestination(pubkey.GetID());
+    string address = CBitcoinAddress(pubkey.GetID()).ToString();
 
     return strAddressHash == AddressToBip38Hash(address);
 }

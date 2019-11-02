@@ -1,6 +1,8 @@
-// Copyright (c) 2017 The PIVX developers
-// Copyright (c) 2019 The Phore Developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef MASTERNODELIST_H
@@ -10,16 +12,10 @@
 #include "platformstyle.h"
 #include "sync.h"
 #include "util.h"
-#include "wallet.h"
 
 #include <QMenu>
 #include <QTimer>
 #include <QWidget>
-
-#include "walletmodel.h"
-
-#include <QDialog>
-#include <QString>
 
 #define MY_MASTERNODELIST_UPDATE_SECONDS 60
 #define MASTERNODELIST_UPDATE_SECONDS 15
@@ -50,7 +46,6 @@ public:
     void setWalletModel(WalletModel* walletModel);
     void StartAlias(std::string strAlias);
     void StartAll(std::string strCommand = "start-all");
-	void deleteAlias(std::string Alias);
 
 private:
     QMenu* contextMenu;
@@ -73,14 +68,9 @@ private:
 
 private Q_SLOTS:
     void showContextMenu(const QPoint&);
-	void deleteAlias();
-	void copyAlias();
     void on_startButton_clicked();
-    void on_editConfigureMasternode_clicked();
     void on_startAllButton_clicked();
     void on_startMissingButton_clicked();
-	void on_configureMasternodeButton_clicked();
-	void openEditConfigureMasternodePage(QString strAlias, QString strIP, QString strPrivKey, QString strTxHash, QString strOutputIndex, int count);
     void on_tableWidgetMyMasternodes_itemSelectionChanged();
     void on_UpdateButton_clicked();
 };

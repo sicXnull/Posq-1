@@ -1,14 +1,13 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2016-2017 The PIVX developers
-// Copyright (c) 2019 The Phore Developers
-// Distributed under the MIT software license, see the accompanying
+// Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
+// Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "txmempool.h"
 
 #include "clientversion.h"
-#include "consensus/validation.h"
 #include "main.h"
 #include "streams.h"
 #include "util.h"
@@ -19,19 +18,16 @@
 
 using namespace std;
 
-CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction& _tx, const CAmount& _nFee,
-                                 int64_t _nTime, double _dPriority, unsigned int _nHeight,
-                                 int64_t _sigOpsCost):
-    tx(_tx), nFee(_nFee), nTime(_nTime), dPriority(_dPriority), nHeight(_nHeight),
-    sigOpCost(_sigOpsCost)
+CTxMemPoolEntry::CTxMemPoolEntry() : nFee(0), nTxSize(0), nModSize(0), nTime(0), dPriority(0.0)
 {
-    nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+    nHeight = MEMPOOL_HEIGHT;
 }
 
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction& _tx, const CAmount& _nFee, int64_t _nTime, double _dPriority, unsigned int _nHeight) : tx(_tx), nFee(_nFee), nTime(_nTime), dPriority(_dPriority), nHeight(_nHeight)
 {
     nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
-    nTxCost = GetTransactionCost(_tx);
+
+    nModSize = tx.CalculateModifiedSize(nTxSize);
 }
 
 CTxMemPoolEntry::CTxMemPoolEntry(const CTxMemPoolEntry& other)
@@ -39,15 +35,8 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTxMemPoolEntry& other)
     *this = other;
 }
 
-CTxMemPoolEntry::CTxMemPoolEntry(): nFee(0), nTxCost(0), nModSize(0), nTime(0), dPriority(0.0)
-{
-}
-
-size_t CTxMemPoolEntry::GetTxSize() const {
-    return GetVirtualTransactionSize(tx);
-}
-
-double CTxMemPoolEntry::GetPriority(unsigned int currentHeight) const
+double
+CTxMemPoolEntry::GetPriority(unsigned int currentHeight) const
 {
     CAmount nValueIn = tx.GetValueOut() + nFee;
     double deltaPriority = ((double)(currentHeight - nHeight) * nValueIn) / nModSize;
@@ -569,8 +558,6 @@ void CTxMemPool::check(const CCoinsViewCache* pcoins) const
         const CTransaction& tx = it->second.GetTx();
         bool fDependsWait = false;
         BOOST_FOREACH (const CTxIn& txin, tx.vin) {
-            if (tx.IsZerocoinSpend())
-                continue;
             // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.
             std::map<uint256, CTxMemPoolEntry>::const_iterator it2 = mapTx.find(txin.prevout.hash);
             if (it2 != mapTx.end()) {
@@ -634,15 +621,6 @@ void CTxMemPool::queryHashes(vector<uint256>& vtxid)
     vtxid.reserve(mapTx.size());
     for (map<uint256, CTxMemPoolEntry>::iterator mi = mapTx.begin(); mi != mapTx.end(); ++mi)
         vtxid.push_back((*mi).first);
-}
-
-void CTxMemPool::getTransactions(std::set<uint256>& setTxid)
-{
-    setTxid.clear();
-
-    LOCK(cs);
-    for (map<uint256, CTxMemPoolEntry>::iterator mi = mapTx.begin(); mi != mapTx.end(); ++mi)
-        setTxid.insert((*mi).first);
 }
 
 bool CTxMemPool::lookup(uint256 hash, CTransaction& result) const

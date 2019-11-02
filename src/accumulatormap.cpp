@@ -1,5 +1,6 @@
-// Copyright (c) 2017 The PIVX developers
-// Distributed under the MIT software license, see the accompanying
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
+// Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "accumulatormap.h"
@@ -12,12 +13,10 @@ using namespace libzerocoin;
 using namespace std;
 
 //Construct accumulators for all denominations
-AccumulatorMap::AccumulatorMap(libzerocoin::ZerocoinParams* currentParams)
+AccumulatorMap::AccumulatorMap()
 {
-    params = currentParams;
-
     for (auto& denom : zerocoinDenomList) {
-        unique_ptr<Accumulator> uptr(new Accumulator(params, denom));
+        unique_ptr<Accumulator> uptr(new Accumulator(Params().Zerocoin_Params(), denom));
         mapAccumulators.insert(make_pair(denom, std::move(uptr)));
     }
 }
@@ -27,7 +26,7 @@ void AccumulatorMap::Reset()
 {
     mapAccumulators.clear();
     for (auto& denom : zerocoinDenomList) {
-        unique_ptr<Accumulator> uptr(new Accumulator(params, denom));
+        unique_ptr<Accumulator> uptr(new Accumulator(Params().Zerocoin_Params(), denom));
         mapAccumulators.insert(make_pair(denom, std::move(uptr)));
     }
 }
@@ -47,13 +46,6 @@ bool AccumulatorMap::Load(uint256 nCheckpoint)
         mapAccumulators.at(denom)->setValue(bnValue);
     }
     return true;
-}
-
-//Load a checkpoint containing 8 32bit checksums of accumulator values.
-void AccumulatorMap::Load(const AccumulatorCheckpoints::Checkpoint& checkpoint)
-{
-    for (auto it : checkpoint)
-        mapAccumulators.at(it.first)->setValue(it.second);
 }
 
 //Add a zerocoin to the accumulator of its denomination.
@@ -94,11 +86,4 @@ uint256 AccumulatorMap::GetCheckpoint()
     return nCheckpoint;
 }
 
-libzerocoin::ZerocoinParams* AccumulatorMap::GetZerocoinParams() {
-    return params;
-}
 
-void AccumulatorMap::SetZerocoinParams(libzerocoin::ZerocoinParams* newParams) {
-    params = newParams;
-    Reset();
-}

@@ -1,23 +1,38 @@
-FROM ubuntu:16.04
+FROM alpine:3.6
+LABEL   maintainer="Aviator" \
+        discord="Aviator#1024"
 
-RUN apt-get update
-RUN apt-get install -y wget pwgen
+ENV DB_VERSION=4.8.30.NC
 
-ARG RPC_USER
-ARG RPC_PASSWORD
-ENV RPC_USER ${RPC_USER:-phore}
-# Create a random password if the user doesn't set one
-ENV RANDOM_PASS `pwgen -Bs1 12`
-ENV RPC_PASSWORD ${RPC_PASSWORD:-$RANDOM_PASS}
+RUN deps="alpine-sdk curl autoconf automake libtool boost-dev openssl-dev libevent-dev git" && \
+    apk add --no-cache -U $deps dumb-init boost boost-program_options libevent libssl1.0 && \
+    curl -L http://download.oracle.com/berkeley-db/db-$DB_VERSION.tar.gz \
+    | tar zx && \
+    cd /db-$DB_VERSION/build_unix && \
+    ../dist/configure \
+      --prefix=/opt/db \
+      --enable-cxx \
+      --disable-shared \
+      --with-pic && \
+    make install && \
+    mkdir /wallet &&\
+    cd /wallet && \
+    git clone https://github.com/Poseidon-POSQ/POSQ.git . &&\   
+    ./autogen.sh && \
+    ./configure LDFLAGS=-L/opt/db/lib CPPFLAGS=-I/opt/db/include \
+      && \
+    make install && \
+    strip /usr/local/bin/posqd &&\
+    strip /usr/local/bin/posq-cli &&\
+    rm /usr/local/bin/posq-tx &&\
+    rm /usr/local/bin/test_posq &&\
+    adduser -D wallet && \
+    apk del $deps && \
+    rm -r /opt/db/docs /var/cache/apk/* /wallet /db-$DB_VERSION
 
-# Build the project
-RUN wget https://github.com/phoreproject/Phore/releases/download/v1.2.0.0/phore-1.1.0-x86_64-linux-gnu.tar.gz -O phore-1.1.0.tar.gz
-RUN tar -xvf phore-1.1.0.tar.gz
-RUN mkdir -p /root/.phore/
-RUN echo "rpcuser=$RPC_USER\nrpcpassword=$RPC_PASSWORD" > /root/.phore/phore.conf
+VOLUME ["/home/wallet/.posq"]
 
-EXPOSE 8332 8333 18332 18333
+EXPOSE 5510/tcp
 
-WORKDIR /phore-1.1.0/bin
-CMD ["/phore-1.1.0/bin/phored"]
-
+USER wallet
+CMD posqd -printtoconsole

@@ -1,4 +1,7 @@
-    // Copyright (c) 2011-2013 The Bitcoin developers
+// Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -41,7 +44,7 @@ bool WalletFrame::addWallet(const QString& name, WalletModel* walletModel)
     if (!gui || !clientModel || !walletModel || mapWalletViews.count(name) > 0)
         return false;
 
-    WalletView* walletView = new WalletView(walletStack);
+    WalletView* walletView = new WalletView(this);
     walletView->setBitcoinGUI(gui);
     walletView->setClientModel(clientModel);
     walletView->setWalletModel(walletModel);
@@ -118,6 +121,13 @@ void WalletFrame::gotoHistoryPage()
         i.value()->gotoHistoryPage();
 }
 
+void WalletFrame::gotoGovernancePage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoGovernancePage();
+}
+
 void WalletFrame::gotoMasternodePage() // Masternode list
 {
     QMap<QString, WalletView*>::const_iterator i;
@@ -151,13 +161,6 @@ void WalletFrame::gotoSendCoinsPage(QString addr)
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoSendCoinsPage(addr);
-}
-
-void WalletFrame::gotoProposalPage()
-{
-    QMap<QString, WalletView*>::const_iterator i;
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoProposalPage();
 }
 
 void WalletFrame::gotoSignMessageTab(QString addr)
@@ -218,11 +221,21 @@ void WalletFrame::changePassphrase()
         walletView->changePassphrase();
 }
 
-void WalletFrame::unlockWallet()
+void WalletFrame::unlockWallet(bool setContext)
+{
+    if (setContext) {
+        unlockWallet(AskPassphraseDialog::Context::Unlock_Full);
+    }
+    else {
+        unlockWallet(AskPassphraseDialog::Context::Unlock_Menu);
+    }
+}
+
+void WalletFrame::unlockWallet(AskPassphraseDialog::Context context)
 {
     WalletView* walletView = currentWalletView();
     if (walletView)
-        walletView->unlockWallet();
+        walletView->unlockWallet(context);
 }
 
 void WalletFrame::lockWallet()

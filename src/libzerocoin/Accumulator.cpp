@@ -9,7 +9,7 @@
  * @copyright  Copyright 2013 Ian Miers, Christina Garman and Matthew Green
  * @license    This project is released under the MIT license.
  **/
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2017 The POSQ developers
 
 #include <sstream>
 #include <iostream>
@@ -49,6 +49,7 @@ void Accumulator::increment(const CBigNum& bnValue) {
 void Accumulator::accumulate(const PublicCoin& coin) {
 	// Make sure we're initialized
 	if(!(this->value)) {
+        std::cout << "Accumulator is not initialized" << "\n";
 		throw std::runtime_error("Accumulator is not initialized");
 	}
 
@@ -107,7 +108,7 @@ void AccumulatorWitness::resetValue(const Accumulator& checkpoint, const PublicC
 }
 
 void AccumulatorWitness::AddElement(const PublicCoin& c) {
-	if(element.getValue() != c.getValue()) {
+	if(element != c) {
 		witness += c;
 	}
 }
@@ -124,12 +125,6 @@ const CBigNum& AccumulatorWitness::getValue() const {
 bool AccumulatorWitness::VerifyWitness(const Accumulator& a, const PublicCoin &publicCoin) const {
 	Accumulator temp(witness);
 	temp += element;
-	if (!(temp == a)) {
-		LogPrintf("Accumulator does not verify.\n");
-	}
-	if (this->element != publicCoin) {
-		LogPrintf("Pubcoin does not verify.\n");
-	}
 	return (temp == a && this->element == publicCoin);
 }
 

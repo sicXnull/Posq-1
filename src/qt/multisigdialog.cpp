@@ -1,4 +1,7 @@
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,7 +12,6 @@
 #include "primitives/transaction.h"
 #include "addressbookpage.h"
 #include "utilstrencodings.h"
-#include "consensus/validation.h"
 #include "core_io.h"
 #include "script/script.h"
 #include "base58.h"
@@ -37,7 +39,7 @@
 #include <QString>
 
 
-MultisigDialog::MultisigDialog(QWidget* parent) : QDialog(parent),
+MultisigDialog::MultisigDialog(QWidget* parent) : QDialog(parent, Qt::WindowSystemMenuHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint),
                                                   ui(new Ui::MultisigDialog),
                                                   model(0)
 {
@@ -49,12 +51,6 @@ MultisigDialog::MultisigDialog(QWidget* parent) : QDialog(parent),
     isFirstRawTx = true;
     ui->keyScrollArea->hide();
     ui->txInputsScrollArea->hide();
-
-    ui->enterMSpinbox->setAttribute(Qt::WA_MacShowFocusRect, 0);
-    ui->multisigAddressLabel->setAttribute(Qt::WA_MacShowFocusRect, 0);
-    ui->transactionHex->setAttribute(Qt::WA_MacShowFocusRect, 0);
-    ui->importRedeem->setAttribute(Qt::WA_MacShowFocusRect, 0);
-
 
     connect(ui->commitButton, SIGNAL(clicked()), this, SLOT(commitMultisigTx()));
 
@@ -204,7 +200,6 @@ void MultisigDialog::on_addMultisigButton_clicked()
 
     for (int i = 0; i < ui->addressList->count(); i++) {
         QWidget* address = qobject_cast<QWidget*>(ui->addressList->itemAt(i)->widget());
-        address->setAttribute(Qt::WA_MacShowFocusRect, 0);
         QValidatedLineEdit* vle = address->findChild<QValidatedLineEdit*>("address");
 
         if(!vle->text().isEmpty()){
@@ -271,7 +266,7 @@ bool MultisigDialog::addMultisig(int m, vector<string> keys){
 
         ui->addMultisigStatus->setStyleSheet("QLabel { color: black; }");
         ui->addMultisigStatus->setText("Multisignature address " +
-                                       QString::fromStdString(EncodeDestination(innerID)) +
+                                       QString::fromStdString(CBitcoinAddress(innerID).ToString()) +
                                        " has been added to the wallet.\nSend the redeem below for other owners to import:\n" +
                                        QString::fromStdString(redeem.ToString()));
     }catch(const runtime_error& e) {
@@ -328,7 +323,7 @@ void MultisigDialog::on_createButton_clicked()
             QWidget* dest = qobject_cast<QWidget*>(ui->destinationsList->itemAt(i)->widget());
             QValidatedLineEdit* addr = dest->findChild<QValidatedLineEdit*>("destinationAddress");
             BitcoinAmountField* amt = dest->findChild<BitcoinAmountField*>("destinationAmount");
-            CTxDestination address;
+            CBitcoinAddress address;
 
             bool validDest = true;
 
@@ -336,7 +331,7 @@ void MultisigDialog::on_createButton_clicked()
                 addr->setValid(false);
                 validDest = false;
             }else{
-                address = DecodeDestination(addr->text().toStdString());
+                address = CBitcoinAddress(addr->text().toStdString());
             }
 
             if(!amt->validate()){
@@ -349,7 +344,7 @@ void MultisigDialog::on_createButton_clicked()
                 continue;
             }
 
-            CScript scriptPubKey = GetScriptForDestination(address);
+            CScript scriptPubKey = GetScriptForDestination(address.Get());
             CTxOut out(amt->value(), scriptPubKey);
             vUserOut.push_back(out);
         }
@@ -370,11 +365,11 @@ void MultisigDialog::on_createButton_clicked()
             ui->createButtonStatus->setStyleSheet("QTextEdit{ color: black }");
 
             QString status(strprintf("Transaction has successfully created with a fee of %s.\n"
-                                     "The transaction has been automatically imported to the sign tab.\n"
-                                     "Please continue on to sign the tx from this wallet, to access the hex to send to other owners.", fee).c_str());
+                                             "The transaction has been automatically imported to the sign tab.\n"
+                                             "Please continue on to sign the tx from this wallet, to access the hex to send to other owners.", fee).c_str());
 
             ui->createButtonStatus->setText(status);
-            ui->transactionHex->setText(QString::fromStdString(EncodeHexTx(multisigTx, PROTOCOL_VERSION)));
+            ui->transactionHex->setText(QString::fromStdString(EncodeHexTx(multisigTx)));
 
         }
     }catch(const runtime_error& e){
@@ -424,7 +419,7 @@ bool MultisigDialog::createMultisigTransaction(vector<CTxIn> vUserIn, vector<CTx
         }
 
         if(totalIn < totalOut){
-            throw runtime_error("Not enough PHR provided as input to complete transaction (including fee).");
+            throw runtime_error("Not enough POSQ provided as input to complete transaction (including fee).");
         }
 
         //calculate change amount
@@ -486,10 +481,10 @@ bool MultisigDialog::createMultisigTransaction(vector<CTxIn> vUserIn, vector<CTx
         CAmount fee = ::minRelayTxFee.GetFee(nBytes);
 
         if(tx.vout.at(changeIndex).nValue > fee){
-           tx.vout.at(changeIndex).nValue -= fee;
-           feeStringRet = strprintf("%d",((double)fee)/COIN).c_str();
+            tx.vout.at(changeIndex).nValue -= fee;
+            feeStringRet = strprintf("%d",((double)fee)/COIN).c_str();
         }else{
-            throw runtime_error("Not enough PHR provided to cover fee");
+            throw runtime_error("Not enough POSQ provided to cover fee");
         }
 
         //clear junk from script sigs
@@ -512,29 +507,11 @@ void MultisigDialog::on_signButton_clicked()
     try{
         //parse tx hex
         CTransaction txRead;
-        if(!DecodeHexTx(txRead, ui->transactionHex->text().toStdString(), true)){
+        if(!DecodeHexTx(txRead, ui->transactionHex->text().toStdString())){
             throw runtime_error("Failed to decode transaction hex!");
         }
 
         CMutableTransaction tx(txRead);
-
-        // Fetch previous transactions (inputs):
-        CCoinsView viewDummy;
-        CCoinsViewCache view(&viewDummy);
-        {
-            LOCK(mempool.cs);
-            CCoinsViewCache& viewChain = *pcoinsTip;
-            CCoinsViewMemPool viewMempool(&viewChain, mempool);
-            view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
-
-            BOOST_FOREACH (const CTxIn& txin, tx.vin) {
-                const uint256& prevHash = txin.prevout.hash;
-                CCoins coins;
-                view.AccessCoins(prevHash); // this is certainly allowed to fail
-            }
-
-            view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
-        }
 
         //check if transaction is already fully verified
         if(isFullyVerified(tx)){
@@ -567,22 +544,22 @@ void MultisigDialog::on_signButton_clicked()
  */
 QString MultisigDialog::buildMultisigTxStatusString(bool fComplete, const CMutableTransaction& tx)
 {
-    string sTxHex = EncodeHexTx(tx, PROTOCOL_VERSION);
+    string sTxHex = EncodeHexTx(tx);
 
     if(fComplete){
         ui->commitButton->setEnabled(true);
         string sTxId = tx.GetHash().GetHex();
         string sTxComplete   =  "Complete: true!\n"
-                                "The commit button has now been enabled for you to finalize the transaction.\n"
-                                "Once the commit button is clicked, the transaction will be published and coins transferred "
-                                "to their destinations.\nWARNING: THE ACTIONS OF THE COMMIT BUTTON ARE FINAL AND CANNOT BE REVERSED.";
+                "The commit button has now been enabled for you to finalize the transaction.\n"
+                "Once the commit button is clicked, the transaction will be published and coins transferred "
+                "to their destinations.\nWARNING: THE ACTIONS OF THE COMMIT BUTTON ARE FINAL AND CANNOT BE REVERSED.";
 
         return QString(strprintf("%s\nTx Id:\n%s\nTx Hex:\n%s",sTxComplete, sTxId, sTxHex).c_str());
     } else {
         string sTxIncomplete = "Complete: false.\n"
-                                "You may now send the hex below to another owner to sign.\n"
-                                "Keep in mind the transaction must be passed from one owner to the next for signing.\n"
-                                "Ensure all owners have imported the redeem before trying to sign. (besides creator)";
+                "You may now send the hex below to another owner to sign.\n"
+                "Keep in mind the transaction must be passed from one owner to the next for signing.\n"
+                "Ensure all owners have imported the redeem before trying to sign. (besides creator)";
 
         return QString(strprintf("%s\nTx Hex: %s", sTxIncomplete, sTxHex).c_str());
     }
@@ -622,6 +599,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
     try{
 
         //copy of vin for reference before vin is mutated
+        vector<CTxIn> oldVin(tx.vin);
         CBasicKeyStore privKeystore;
 
         //if keys were given, attempt to collect redeem and scriptpubkey
@@ -668,7 +646,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
             }
         }else{
             if (model->getEncryptionStatus() == model->Locked) {
-                if (!model->requestUnlock(true).isValid()) {
+                if (!model->requestUnlock(AskPassphraseDialog::Context::Multi_Sig, true).isValid()) {
                     // Unlock wallet was cancelled
                     throw runtime_error("Error: Your wallet is locked. Please enter the wallet passphrase first.");
                 }
@@ -679,7 +657,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
         const CKeyStore& keystore = fGivenKeys ? privKeystore : *pwalletMain;
 
         //attempt to sign each input from local wallet
-        unsigned int nIn = 0;
+        int nIn = 0;
         for(CTxIn& txin : tx.vin){
             //get inputs
             CTransaction txVin;
@@ -690,22 +668,16 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
             if (hashBlock == 0)
                 throw runtime_error("txin is unconfirmed");
 
-            const CAmount& amount = txVin.vout[txin.prevout.n].nValue;
-
             txin.scriptSig.clear();
             CScript prevPubKey = txVin.vout[txin.prevout.n].scriptPubKey;
 
-            SignatureData sigdata;
-
             //sign what we can
-            ProduceSignature(MutableTransactionSignatureCreator(&keystore, &tx, nIn, txVin.vout[nIn].nValue, SIGHASH_ALL), prevPubKey, sigdata);
+            SignSignature(keystore, prevPubKey, tx, nIn);
 
             //merge in any previous signatures
-            sigdata = CombineSignatures(prevPubKey, MutableTransactionSignatureChecker(&tx, nIn, amount), sigdata, DataFromTransaction(tx, nIn));
+            txin.scriptSig = CombineSignatures(prevPubKey, tx, nIn, txin.scriptSig, oldVin[nIn].scriptSig);
 
-            const CScriptWitness *witness = (nIn < tx.wit.vtxinwit.size()) ? &tx.wit.vtxinwit[nIn].scriptWitness : NULL;
-
-            if (!VerifyScript(txin.scriptSig, prevPubKey, witness, STANDARD_SCRIPT_VERIFY_FLAGS, MutableTransactionSignatureChecker(&tx, nIn, amount))){
+            if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, MutableTransactionSignatureChecker(&tx, nIn))){
                 fComplete = false;
             }
             nIn++;
@@ -723,7 +695,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
 // quick check for an already fully signed tx
 bool MultisigDialog::isFullyVerified(CMutableTransaction& tx){
     try{
-        unsigned int nIn = 0;
+        int nIn = 0;
         for(CTxIn& txin : tx.vin){
             CTransaction txVin;
             uint256 hashBlock;
@@ -734,13 +706,10 @@ bool MultisigDialog::isFullyVerified(CMutableTransaction& tx){
                 throw runtime_error("txin is unconfirmed");
             }
 
-            const CAmount& amount = txVin.vout[txin.prevout.n].nValue;
-            const CScriptWitness *witness = (nIn < tx.wit.vtxinwit.size()) ? &tx.wit.vtxinwit[nIn].scriptWitness : NULL;
-
             //get pubkey from this input as output in last tx
             CScript prevPubKey = txVin.vout[txin.prevout.n].scriptPubKey;
 
-            if (!VerifyScript(txin.scriptSig, prevPubKey, witness, STANDARD_SCRIPT_VERIFY_FLAGS, MutableTransactionSignatureChecker(&tx, nIn, amount))){
+            if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, MutableTransactionSignatureChecker(&tx, nIn))){
                 return false;
             }
 
@@ -801,9 +770,9 @@ bool MultisigDialog::createRedeemScript(int m, vector<string> vKeys, CScript& re
             throw runtime_error("a Multisignature address must require at least one key to redeem");
         if (n < m)
             throw runtime_error(
-                strprintf("not enough keys supplied "
-                          "(got %d keys, but need at least %d to redeem)",
-                    m, n));
+                    strprintf("not enough keys supplied "
+                                      "(got %d keys, but need at least %d to redeem)",
+                              m, n));
         if (n > 15)
             throw runtime_error("Number of addresses involved in the Multisignature address creation > 15\nReduce the number");
 
@@ -814,11 +783,11 @@ bool MultisigDialog::createRedeemScript(int m, vector<string> vKeys, CScript& re
         for(vector<string>::iterator it = vKeys.begin(); it != vKeys.end(); ++it) {
             string keyString = *it;
 #ifdef ENABLE_WALLET
-            // Case 1: Phore address and we have full public key:
-            if (pwalletMain && IsValidDestinationString(keyString)) {
-                CTxDestination address = DecodeDestination(keyString);
-                CKeyID keyID = GetKeyForDestination(*pwalletMain, address);
-                if (keyID.IsNull()) {
+            // Case 1: POSQ address and we have full public key:
+            CBitcoinAddress address(keyString);
+            if (pwalletMain && address.IsValid()) {
+                CKeyID keyID;
+                if (!address.GetKeyID(keyID)) {
                     throw runtime_error(
                         strprintf("%s does not refer to a key", keyString));
                 }

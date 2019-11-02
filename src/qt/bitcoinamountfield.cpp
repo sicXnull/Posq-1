@@ -1,4 +1,7 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -24,7 +27,7 @@ class AmountSpinBox : public QAbstractSpinBox
 
 public:
     explicit AmountSpinBox(QWidget* parent) : QAbstractSpinBox(parent),
-                                              currentUnit(BitcoinUnits::PHR),
+                                              currentUnit(BitcoinUnits::POSQ),
                                               singleStep(100000) // satoshis
     {
         setAlignment(Qt::AlignRight);
@@ -97,7 +100,7 @@ public:
 
             const QFontMetrics fm(fontMetrics());
             int h = lineEdit()->minimumSizeHint().height();
-            int w = fm.width(BitcoinUnits::format(BitcoinUnits::PHR, BitcoinUnits::maxMoney(), false, BitcoinUnits::separatorAlways));
+            int w = fm.width(BitcoinUnits::format(BitcoinUnits::POSQ, BitcoinUnits::maxMoney(), false, BitcoinUnits::separatorAlways));
             w += 2; // cursor blinking space
 
             QStyleOptionSpinBox opt;
@@ -196,7 +199,6 @@ BitcoinAmountField::BitcoinAmountField(QWidget* parent) : QWidget(parent),
     amount->setLocale(QLocale::c());
     amount->installEventFilter(this);
     amount->setMaximumWidth(170);
-    amount->setAttribute(Qt::WA_MacShowFocusRect, 0);
 
     QHBoxLayout* layout = new QHBoxLayout(this);
     layout->addWidget(amount);

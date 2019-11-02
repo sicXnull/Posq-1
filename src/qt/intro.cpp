@@ -1,6 +1,7 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2017 The PIVX developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -19,7 +20,7 @@
 
 /* Minimum free space (in bytes) needed for data directory */
 static const uint64_t GB_BYTES = 1000000000LL;
-static const uint64_t BLOCK_CHAIN_SIZE = 2LL * GB_BYTES;
+static const uint64_t BLOCK_CHAIN_SIZE = 1LL * GB_BYTES;
 
 /* Check free space asynchronously to prevent hanging the UI thread.
 
@@ -103,7 +104,7 @@ void FreespaceChecker::check()
 }
 
 
-Intro::Intro(QWidget* parent) : QDialog(parent),
+Intro::Intro(QWidget* parent) : QDialog(parent, Qt::WindowSystemMenuHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint),
                                 ui(new Ui::Intro),
                                 thread(0),
                                 signalled(false)
@@ -174,7 +175,7 @@ bool Intro::pickDataDirectory()
                 TryCreateDirectory(GUIUtil::qstringToBoostPath(dataDir));
                 break;
             } catch (fs::filesystem_error& e) {
-                QMessageBox::critical(0, tr("Phore Core"),
+                QMessageBox::critical(0, tr("POSQ Core"),
                     tr("Error: Specified data directory \"%1\" cannot be created.").arg(dataDir));
                 /* fall through, back to choosing screen */
             }
@@ -183,8 +184,8 @@ bool Intro::pickDataDirectory()
         settings.setValue("strDataDir", dataDir);
     }
     /* Only override -datadir if different from the default, to make it possible to
-     * override -datadir in the phore.conf file in the default data directory
-     * (to be consistent with phored behavior)
+     * override -datadir in the posq.conf file in the default data directory
+     * (to be consistent with posqd behavior)
      */
     if (dataDir != getDefaultDataDirectory())
         SoftSetArg("-datadir", GUIUtil::qstringToBoostPath(dataDir).string()); // use OS locale for path setting

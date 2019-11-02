@@ -1,8 +1,8 @@
-// Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
+// Copyright (c) 2011-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2017 The PIVX developers
-// Distributed under the MIT software license, see the accompanying
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
+// Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 /**
@@ -13,7 +13,7 @@
 #define BITCOIN_UTIL_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/phore-config.h"
+#include "config/posq-config.h"
 #endif
 
 #include "compat.h"
@@ -29,7 +29,17 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/thread/exceptions.hpp>
 
-//Phore only features
+// Debugging macros
+// Uncomment the following line to enable debugging messages
+// or enable on a per file basis prior to inclusion of util.h
+//#define ENABLE_POSQ_DEBUG
+#ifdef ENABLE_POSQ_DEBUG
+#define DBG( x ) x
+#else
+#define DBG( x )
+#endif
+
+//POSQ only features
 
 extern bool fMasterNode;
 extern bool fLiteMode;
@@ -38,7 +48,7 @@ extern int nSwiftTXDepth;
 extern int nZeromintPercentage;
 extern const int64_t AUTOMINT_DELAY;
 extern int nPreferredDenom;
-extern int nAnonymizePhoreAmount;
+extern int nAnonymizePOSQAmount;
 extern int nLiquidityProvider;
 extern bool fEnableZeromint;
 extern int64_t enforceMasternodePaymentsTime;
@@ -60,7 +70,6 @@ extern bool fLogIPs;
 extern volatile bool fReopenDebugLog;
 
 void SetupEnvironment();
-bool SetupNetworking();
 
 /** Return true if log accepts specified category */
 bool LogAcceptCategory(const char* category);
@@ -106,8 +115,6 @@ static inline bool error(const char* format)
     return false;
 }
 
-double double_safe_addition(double fValue, double fIncrement);
-double double_safe_multiplication(double fValue, double fmultiplicator);
 void PrintExceptionContinue(std::exception* pex, const char* pszThread);
 void ParseParameters(int argc, const char* const argv[]);
 void FileCommit(FILE* fileout);
@@ -212,7 +219,7 @@ void RenameThread(const char* name);
 template <typename Callable>
 void TraceThread(const char* name, Callable func)
 {
-    std::string s = strprintf("phore-%s", name);
+    std::string s = strprintf("posq-%s", name);
     RenameThread(s.c_str());
     try {
         LogPrintf("%s thread start\n", name);
@@ -229,13 +236,5 @@ void TraceThread(const char* name, Callable func)
         throw;
     }
 }
-
-/** Parse number as fixed point according to JSON number syntax.
- * See http://json.org/number.gif
- * @returns true on success, false on error.
- * @note The result must be in the range (-10^18,10^18), otherwise an overflow error will trigger.
- */
-bool ParseFixedPoint(const std::string &val, int decimals, int64_t *amount_out);
-
 
 #endif // BITCOIN_UTIL_H

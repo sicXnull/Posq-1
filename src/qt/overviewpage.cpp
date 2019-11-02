@@ -1,7 +1,7 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2017 The PIVX developers
-// Copyright (c) 2017-2019 The Phore Developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -26,11 +26,9 @@
 #include <QSettings>
 #include <QTimer>
 
-#define DECORATION_SIZE 44
+#define DECORATION_SIZE 48
 #define ICON_OFFSET 16
 #define NUM_ITEMS 9
-
-extern CWallet* pwalletMain;
 
 extern CWallet* pwalletMain;
 
@@ -38,7 +36,7 @@ class TxViewDelegate : public QAbstractItemDelegate
 {
     Q_OBJECT
 public:
-    TxViewDelegate() : QAbstractItemDelegate(), unit(BitcoinUnits::PHR)
+    TxViewDelegate() : QAbstractItemDelegate(), unit(BitcoinUnits::POSQ)
     {
     }
 
@@ -49,7 +47,7 @@ public:
         QIcon icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
         QRect mainRect = option.rect;
         mainRect.moveLeft(ICON_OFFSET);
-        QRect decorationRect(mainRect.topLeft(), QSize(DECORATION_SIZE - 10, DECORATION_SIZE - 10));
+        QRect decorationRect(mainRect.topLeft(), QSize(DECORATION_SIZE, DECORATION_SIZE));
         int xspace = DECORATION_SIZE + 8;
         int ypad = 6;
         int halfheight = (mainRect.height() - 2 * ypad) / 2;
@@ -61,17 +59,6 @@ public:
         QString address = index.data(Qt::DisplayRole).toString();
         qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
-
-        // Check transaction status
-        int nStatus = index.data(TransactionTableModel::StatusRole).toInt();
-        bool fConflicted = false;
-        if (nStatus == TransactionStatus::Conflicted || nStatus == TransactionStatus::NotAccepted) {
-            fConflicted = true; // Most probably orphaned, but could have other reasons as well
-        }
-        bool fImmature = false;
-        if (nStatus == TransactionStatus::Immature) {
-            fImmature = true;
-        }
 
         QVariant value = index.data(Qt::ForegroundRole);
         QColor foreground = COLOR_BLACK;
@@ -90,15 +77,9 @@ public:
             iconWatchonly.paint(painter, watchonlyRect);
         }
 
-        if(fConflicted) { // No need to check anything else for conflicted transactions
-            foreground = COLOR_CONFLICTED;
-        } else if (!confirmed || fImmature) {
-            foreground = COLOR_UNCONFIRMED;
-        } else if (amount < 0) {
+        if (amount < 0)
             foreground = COLOR_NEGATIVE;
-        } else {
-            foreground = COLOR_BLACK;
-        }
+
         painter->setPen(foreground);
         QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
         if (!confirmed) {
@@ -106,7 +87,7 @@ public:
         }
         painter->drawText(amountRect, Qt::AlignRight | Qt::AlignVCenter, amountText);
 
-        painter->setPen(foreground);
+        painter->setPen(COLOR_BLACK);
         painter->drawText(amountRect, Qt::AlignLeft | Qt::AlignVCenter, GUIUtil::dateTimeStr(date));
 
         painter->restore();
@@ -167,7 +148,7 @@ OverviewPage::~OverviewPage()
     delete ui;
 }
 
-void OverviewPage::getPercentage(CAmount nUnlockedBalance, CAmount nZerocoinBalance, QString& sPHRPercentage, QString& szPHRPercentage)
+void OverviewPage::getPercentage(CAmount nUnlockedBalance, CAmount nZerocoinBalance, QString& sPOSQPercentage, QString& szPOSQPercentage)
 {
     int nPrecision = 2;
     double dzPercentage = 0.0;
@@ -185,13 +166,13 @@ void OverviewPage::getPercentage(CAmount nUnlockedBalance, CAmount nZerocoinBala
     }
 
     double dPercentage = 100.0 - dzPercentage;
-    
-    szPHRPercentage = "(" + QLocale(QLocale::system()).toString(dzPercentage, 'f', nPrecision) + " %)";
-    sPHRPercentage = "(" + QLocale(QLocale::system()).toString(dPercentage, 'f', nPrecision) + " %)";
-    
+
+    szPOSQPercentage = "(" + QLocale(QLocale::system()).toString(dzPercentage, 'f', nPrecision) + " %)";
+    sPOSQPercentage = "(" + QLocale(QLocale::system()).toString(dPercentage, 'f', nPrecision) + " %)";
+
 }
 
-void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance, 
+void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                               const CAmount& zerocoinBalance, const CAmount& unconfirmedZerocoinBalance, const CAmount& immatureZerocoinBalance,
                               const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance)
 {
@@ -211,100 +192,120 @@ void OverviewPage::setBalance(const CAmount& balance, const CAmount& unconfirmed
         nLockedBalance = pwalletMain->GetLockedCoins();
         nWatchOnlyLockedBalance = pwalletMain->GetLockedWatchOnlyBalance();
     }
-    // PHR Balance
+
+    // POSQ Balance
     CAmount nTotalBalance = balance + unconfirmedBalance;
-    CAmount phrAvailableBalance = balance - immatureBalance - nLockedBalance;
-    CAmount nTotalWatchBalance = watchOnlyBalance + watchUnconfBalance + watchImmatureBalance;    
+    CAmount posqAvailableBalance = balance - immatureBalance - nLockedBalance;
     CAmount nUnlockedBalance = nTotalBalance - nLockedBalance;
-    // zPHR Balance
+
+    // POSQ Watch-Only Balance
+    CAmount nTotalWatchBalance = watchOnlyBalance + watchUnconfBalance;
+    CAmount nAvailableWatchBalance = watchOnlyBalance - watchImmatureBalance - nWatchOnlyLockedBalance;
+
+    // zPOSQ Balance
     CAmount matureZerocoinBalance = zerocoinBalance - unconfirmedZerocoinBalance - immatureZerocoinBalance;
+
     // Percentages
     QString szPercentage = "";
     QString sPercentage = "";
     getPercentage(nUnlockedBalance, zerocoinBalance, sPercentage, szPercentage);
     // Combined balances
-    CAmount availableTotalBalance = phrAvailableBalance + matureZerocoinBalance;
+    CAmount availableTotalBalance = posqAvailableBalance + matureZerocoinBalance;
     CAmount sumTotalBalance = nTotalBalance + zerocoinBalance;
 
-    // PHR labels
-    ui->labelBalance->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, phrAvailableBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelUnconfirmed->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelImmature->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, immatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelLockedBalance->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, nLockedBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotal->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, nTotalBalance, false, BitcoinUnits::separatorAlways));
+    // POSQ labels
+    ui->labelBalance->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, posqAvailableBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelUnconfirmed->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelImmature->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, immatureBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelLockedBalance->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, nLockedBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelTotal->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, nTotalBalance, false, BitcoinUnits::separatorAlways));
 
     // Watchonly labels
-    ui->labelWatchAvailable->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, watchOnlyBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchPending->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchImmature->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, watchImmatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchLocked->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, nWatchOnlyLockedBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchTotal->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, nTotalWatchBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelWatchAvailable->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, nAvailableWatchBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelWatchPending->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelWatchImmature->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, watchImmatureBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelWatchLocked->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, nWatchOnlyLockedBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelWatchTotal->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, nTotalWatchBalance, false, BitcoinUnits::separatorAlways));
 
-    // zPHR labels
-    ui->labelzBalance->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, zerocoinBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelzBalanceUnconfirmed->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, unconfirmedZerocoinBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelzBalanceMature->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, matureZerocoinBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelzBalanceImmature->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, immatureZerocoinBalance, false, BitcoinUnits::separatorAlways));
+    // zPOSQ labels
+    ui->labelzBalance->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, zerocoinBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelzBalanceUnconfirmed->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, unconfirmedZerocoinBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelzBalanceMature->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, matureZerocoinBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelzBalanceImmature->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, immatureZerocoinBalance, false, BitcoinUnits::separatorAlways));
 
     // Combined labels
-    ui->labelBalancez->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, availableTotalBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotalz->setText(BitcoinUnits::floorHtmlWithUnitComma(nDisplayUnit, sumTotalBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelBalancez->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, availableTotalBalance, false, BitcoinUnits::separatorAlways));
+    ui->labelTotalz->setText(BitcoinUnits::floorHtmlWithUnit(nDisplayUnit, sumTotalBalance, false, BitcoinUnits::separatorAlways));
 
     // Percentage labels
-    ui->labelPHRPercent->setText(sPercentage);
-    ui->labelzPHRPercent->setText(szPercentage);
+    ui->labelPOSQPercent->setText(sPercentage);
+    ui->labelzPOSQPercent->setText(szPercentage);
 
     // Adjust bubble-help according to AutoMint settings
-    QString automintHelp = tr("Current percentage of zPHR.\nIf AutoMint is enabled this percentage will settle around the configured AutoMint percentage (default = 10%).\n");
-    bool fEnableZeromint = GetBoolArg("-enablezeromint", false);
+    QString automintHelp = tr("Current percentage of zPOSQ.\nIf AutoMint is enabled this percentage will settle around the configured AutoMint percentage (default = 10%).\n");
+    bool fEnableZeromint = GetBoolArg("-enablezeromint", true);
     int nZeromintPercentage = GetArg("-zeromintpercentage", 10);
     if (fEnableZeromint) {
         automintHelp += tr("AutoMint is currently enabled and set to ") + QString::number(nZeromintPercentage) + "%.\n";
-        automintHelp += tr("To disable AutoMint add 'enablezeromint=0' in phore.conf.");
+        automintHelp += tr("To disable AutoMint add 'enablezeromint=0' in posq.conf.");
     }
     else {
-        automintHelp += tr("AutoMint is currently disabled.\nTo enable AutoMint change 'enablezeromint=0' to 'enablezeromint=1' in phore.conf");
+        automintHelp += tr("AutoMint is currently disabled.\nTo enable AutoMint change 'enablezeromint=0' to 'enablezeromint=1' in posq.conf");
     }
 
     // Only show most balances if they are non-zero for the sake of simplicity
     QSettings settings;
     bool settingShowAllBalances = !settings.value("fHideZeroBalances").toBool();
+
     bool showSumAvailable = settingShowAllBalances || sumTotalBalance != availableTotalBalance;
     ui->labelBalanceTextz->setVisible(showSumAvailable);
     ui->labelBalancez->setVisible(showSumAvailable);
-    bool showPHRAvailable = settingShowAllBalances || phrAvailableBalance != nTotalBalance;
-    bool showWatchOnlyPHRAvailable = watchOnlyBalance != nTotalWatchBalance;
-    bool showPHRPending = settingShowAllBalances || unconfirmedBalance != 0;
-    bool showWatchOnlyPHRPending = watchUnconfBalance != 0;
-    bool showPHRLocked = settingShowAllBalances || nLockedBalance != 0;
-    bool showWatchOnlyPHRLocked = nWatchOnlyLockedBalance != 0;
-    bool showImmature = settingShowAllBalances || immatureBalance != 0;
-    bool showWatchOnlyImmature = watchImmatureBalance != 0;
+
     bool showWatchOnly = nTotalWatchBalance != 0;
-    ui->labelBalance->setVisible(showPHRAvailable || showWatchOnlyPHRAvailable);
-    ui->labelBalanceText->setVisible(showPHRAvailable || showWatchOnlyPHRAvailable);
-    ui->labelWatchAvailable->setVisible(showPHRAvailable && showWatchOnly);
-    ui->labelUnconfirmed->setVisible(showPHRPending || showWatchOnlyPHRPending);
-    ui->labelPendingText->setVisible(showPHRPending || showWatchOnlyPHRPending);
-    ui->labelWatchPending->setVisible(showPHRPending && showWatchOnly);
-    ui->labelLockedBalance->setVisible(showPHRLocked || showWatchOnlyPHRLocked);
-    ui->labelLockedBalanceText->setVisible(showPHRLocked || showWatchOnlyPHRLocked);
-    ui->labelWatchLocked->setVisible(showPHRLocked && showWatchOnly);
-    ui->labelImmature->setVisible(showImmature || showWatchOnlyImmature); // for symmetry reasons also show immature label when the watch-only one is shown
-    ui->labelImmatureText->setVisible(showImmature || showWatchOnlyImmature);
-    ui->labelWatchImmature->setVisible(showImmature && showWatchOnly); // show watch-only immature balance
-    bool showzPHRAvailable = settingShowAllBalances || zerocoinBalance != matureZerocoinBalance;
-    bool showzPHRUnconfirmed = settingShowAllBalances || unconfirmedZerocoinBalance != 0;
-    bool showzPHRImmature = settingShowAllBalances || immatureZerocoinBalance != 0;
-    ui->labelzBalanceMature->setVisible(showzPHRAvailable);
-    ui->labelzBalanceMatureText->setVisible(showzPHRAvailable);
-    ui->labelzBalanceUnconfirmed->setVisible(showzPHRUnconfirmed);
-    ui->labelzBalanceUnconfirmedText->setVisible(showzPHRUnconfirmed);
-    ui->labelzBalanceImmature->setVisible(showzPHRImmature);
-    ui->labelzBalanceImmatureText->setVisible(showzPHRImmature);
+
+    // POSQ Available
+    bool showPOSQAvailable = settingShowAllBalances || posqAvailableBalance != nTotalBalance;
+    bool showWatchOnlyPOSQAvailable = showPOSQAvailable || nAvailableWatchBalance != nTotalWatchBalance;
+    ui->labelBalanceText->setVisible(showPOSQAvailable || showWatchOnlyPOSQAvailable);
+    ui->labelBalance->setVisible(showPOSQAvailable || showWatchOnlyPOSQAvailable);
+    ui->labelWatchAvailable->setVisible(showWatchOnlyPOSQAvailable && showWatchOnly);
+
+    // POSQ Pending
+    bool showPOSQPending = settingShowAllBalances || unconfirmedBalance != 0;
+    bool showWatchOnlyPOSQPending = showPOSQPending || watchUnconfBalance != 0;
+    ui->labelPendingText->setVisible(showPOSQPending || showWatchOnlyPOSQPending);
+    ui->labelUnconfirmed->setVisible(showPOSQPending || showWatchOnlyPOSQPending);
+    ui->labelWatchPending->setVisible(showWatchOnlyPOSQPending && showWatchOnly);
+
+    // POSQ Immature
+    bool showPOSQImmature = settingShowAllBalances || immatureBalance != 0;
+    bool showWatchOnlyImmature = showPOSQImmature || watchImmatureBalance != 0;
+    ui->labelImmatureText->setVisible(showPOSQImmature || showWatchOnlyImmature);
+    ui->labelImmature->setVisible(showPOSQImmature || showWatchOnlyImmature); // for symmetry reasons also show immature label when the watch-only one is shown
+    ui->labelWatchImmature->setVisible(showWatchOnlyImmature && showWatchOnly); // show watch-only immature balance
+
+    // POSQ Locked
+    bool showPOSQLocked = settingShowAllBalances || nLockedBalance != 0;
+    bool showWatchOnlyPOSQLocked = showPOSQLocked || nWatchOnlyLockedBalance != 0;
+    ui->labelLockedBalanceText->setVisible(showPOSQLocked || showWatchOnlyPOSQLocked);
+    ui->labelLockedBalance->setVisible(showPOSQLocked || showWatchOnlyPOSQLocked);
+    ui->labelWatchLocked->setVisible(showWatchOnlyPOSQLocked && showWatchOnly);
+
+    // zPOSQ
+    bool showzPOSQAvailable = settingShowAllBalances || zerocoinBalance != matureZerocoinBalance;
+    bool showzPOSQUnconfirmed = settingShowAllBalances || unconfirmedZerocoinBalance != 0;
+    bool showzPOSQImmature = settingShowAllBalances || immatureZerocoinBalance != 0;
+    ui->labelzBalanceMature->setVisible(showzPOSQAvailable);
+    ui->labelzBalanceMatureText->setVisible(showzPOSQAvailable);
+    ui->labelzBalanceUnconfirmed->setVisible(showzPOSQUnconfirmed);
+    ui->labelzBalanceUnconfirmedText->setVisible(showzPOSQUnconfirmed);
+    ui->labelzBalanceImmature->setVisible(showzPOSQImmature);
+    ui->labelzBalanceImmatureText->setVisible(showzPOSQImmature);
+
+    // Percent split
     bool showPercentages = ! (zerocoinBalance == 0 && nTotalBalance == 0);
-    ui->labelPHRPercent->setVisible(showPercentages);
-    ui->labelzPHRPercent->setVisible(showPercentages);
+    ui->labelPOSQPercent->setVisible(showPercentages);
+    ui->labelzPOSQPercent->setVisible(showPercentages);
 
     static int cachedTxLocks = 0;
 
@@ -363,20 +364,25 @@ void OverviewPage::setWalletModel(WalletModel* model)
 
         // Keep up to date with wallet
         setBalance(model->getBalance(), model->getUnconfirmedBalance(), model->getImmatureBalance(),
-                   model->getZerocoinBalance(), model->getUnconfirmedZerocoinBalance(), model->getImmatureZerocoinBalance(), 
+                   model->getZerocoinBalance(), model->getUnconfirmedZerocoinBalance(), model->getImmatureZerocoinBalance(),
                    model->getWatchBalance(), model->getWatchUnconfirmedBalance(), model->getWatchImmatureBalance());
-        connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)), this, 
+        connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)), this,
                          SLOT(setBalance(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)));
 
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
         connect(model->getOptionsModel(), SIGNAL(hideZeroBalancesChanged(bool)), this, SLOT(updateDisplayUnit()));
+        connect(model->getOptionsModel(), SIGNAL(hideOrphansChanged(bool)), this, SLOT(hideOrphans(bool)));
 
         updateWatchOnlyLabels(model->haveWatchOnly());
         connect(model, SIGNAL(notifyWatchonlyChanged(bool)), this, SLOT(updateWatchOnlyLabels(bool)));
     }
 
-    // update the display unit, to not use the default ("PHR")
+    // update the display unit, to not use the default ("POSQ")
     updateDisplayUnit();
+
+    // Hide orphans
+    QSettings settings;
+    hideOrphans(settings.value("fHideOrphans", false).toBool());
 }
 
 void OverviewPage::updateDisplayUnit()
@@ -404,4 +410,10 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+}
+
+void OverviewPage::hideOrphans(bool fHide)
+{
+    if (filter)
+        filter->setHideOrphans(fHide);
 }

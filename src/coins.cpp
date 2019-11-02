@@ -1,6 +1,8 @@
-// Copyright (c) 2012-2014 The Bitcoin developers
-// Copyright (c) 2015-2017 The PIVX developers
-// Distributed under the MIT software license, see the accompanying
+// Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
+// Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "coins.h"
@@ -254,15 +256,11 @@ double CCoinsViewCache::GetPriority(const CTransaction& tx, int nHeight) const
         return 0.0;
     double dResult = 0.0;
     for (const CTxIn& txin:  tx.vin) {
-        if (!tx.IsZerocoinSpend()) {
-            const CCoins* coins = AccessCoins(txin.prevout.hash);
-            assert(coins);
-            if (!coins->IsAvailable(txin.prevout.n)) continue;
-            if (coins->nHeight < nHeight) {
-                dResult += coins->vout[txin.prevout.n].nValue * (nHeight - coins->nHeight); // value * age
-            }
-        } else {
-            dResult += tx.GetZerocoinSpent(); // we do not know the age of a zerocoin tx
+        const CCoins* coins = AccessCoins(txin.prevout.hash);
+        assert(coins);
+        if (!coins->IsAvailable(txin.prevout.n)) continue;
+        if (coins->nHeight < nHeight) {
+            dResult += coins->vout[txin.prevout.n].nValue * (nHeight - coins->nHeight);
         }
     }
     return tx.ComputePriority(dResult);

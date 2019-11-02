@@ -1,9 +1,10 @@
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2018-2019 The POSQ developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PHORE_CSPORKDB_H
-#define PHORE_CSPORKDB_H
+#ifndef POSQ_CSPORKDB_H
+#define POSQ_CSPORKDB_H
 
 #include <boost/filesystem/path.hpp>
 #include "leveldbwrapper.h"
@@ -25,4 +26,4 @@ public:
 };
 
 
-#endif //PHORE_CSPORKDB_H
+#endif //POSQ_CSPORKDB_H
