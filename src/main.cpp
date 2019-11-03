@@ -2239,6 +2239,101 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue, int nMasternodeCou
     return ret;
 }
 
+//Treasury blocks start from 60,000 and then each block after
+int nStartTreasuryBlock = 400;
+int nTreasuryBlockStep = 1440;
+//Checks to see if block count above is correct if not then no Treasury
+bool IsTreasuryBlock(int nHeight)
+{
+    //This is put in for when dev fee is turned off.
+    if (nHeight < nStartTreasuryBlock)
+        return false;
+    else if (IsSporkActive(SPORK_17_TREASURY_PAYMENT_ENFORCEMENT))
+        return false;
+    else if ((nHeight - nStartTreasuryBlock) % nTreasuryBlockStep == 0)
+        return true;
+    else
+        return false;
+
+    /*
+	if (nHeight < nStartTreasuryBlock)
+	return false;
+	else if ((nHeight - nStartTreasuryBlock) % nTreasuryBlockStep == 0)
+	return true;
+	else
+	return false;
+	*/
+}
+
+int64_t GetTreasuryAward(int nHeight)
+{
+    if (IsTreasuryBlock(nHeight)) {
+        if (nHeight < 50000 && nHeight > 400) {
+            return 72 * COIN; // 5% of phase total
+        } else if (nHeight < 100000 && nHeight > 50000) {
+            return 144 * COIN; // 5% of phase total
+        } else if (nHeight < 150000 && nHeight > 100000) {
+            return 360 * COIN; // 5% of phase total
+        } else if (nHeight < 400000 && nHeight > 150000) {
+            return 180 * COIN; // 5% of phase total
+        } else if (nHeight < 800000 && nHeight > 400000) {
+            return 90 * COIN; // 5% of phase total
+        } else if (nHeight < 1600000 && nHeight > 800000) {
+            return 216 * COIN; // 5% of phase total
+        } else if (nHeight < 3200000 && nHeight > 1600000) {
+            return 72 * COIN; // 5% of current phase total emission
+        } else if (nHeight < 6400000 && nHeight > 3200000){
+            return 36 * COIN;  // 5% of phase total
+        } else if (nHeight < 12800000 && nHeight > 6400000){
+            return 18 * COIN;  // 5% of phase total
+        } else if (nHeight < 25600000 && nHeight > 12800000){
+            return 72 * COIN;  // 5% of phase total
+        }
+    } else
+        return 0;
+}
+
+//Revive blocks start from 60,001 and then each block after
+int nStartReviveBlock = 9999998;
+int nReviveBlockStep = 9999999;
+//Checks to see if block count above is correct if not then no Revive
+bool IsReviveBlock(int nHeight)
+{
+    // Old fee for AQX before admin gave up on project
+    // POSQ will not pay for revival fee since POSQ dev did all work
+    // And AQX team didnt help like promised.
+
+    if (nHeight < nStartReviveBlock)
+        return false;
+    else if (IsSporkActive(SPORK_18_REVIVE_PAYMENT_ENFORCEMENT))
+        return false;
+    else if ((nHeight - nStartReviveBlock) % nReviveBlockStep == 0)
+        return true;
+    else
+        return false;
+
+    /*
+	if (nHeight < nStartReviveBlock)
+	return false;
+	else if ((nHeight - nStartReviveBlock) % nReviveBlockStep == 0)
+	return true;
+	else
+	return false;
+	*/
+}
+
+int64_t GetReviveAward(int nHeight)
+{
+    if (IsReviveBlock(nHeight)) {
+        if (nHeight > 60000) {
+            return 0 * COIN;
+        } else {
+            return 0;
+        }
+    } else
+        return 0;
+}
+
 bool IsInitialBlockDownload()
 {
     LOCK(cs_main);
