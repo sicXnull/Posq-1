@@ -1,9 +1,7 @@
-// Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
-// Copyright (c) 2018-2019 The POSQ developers
+// Copyright (c) 2017 The PIVX developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
 #ifndef ZPOSQCONTROLDIALOG_H
 #define ZPOSQCONTROLDIALOG_H
 
@@ -16,25 +14,25 @@ class CZerocoinMint;
 class WalletModel;
 
 namespace Ui {
-class ZPOSQControlDialog;
+class ZPhrControlDialog;
 }
 
-class ZPOSQControlDialog : public QDialog
+class ZPhrControlDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit ZPOSQControlDialog(QWidget *parent);
-    ~ZPOSQControlDialog();
+    explicit ZPhrControlDialog(QWidget *parent);
+    ~ZPhrControlDialog();
 
     void setModel(WalletModel* model);
 
-    static std::list<std::string> listSelectedMints;
-    static std::list<CZerocoinMint> listMints;
-    static std::vector<CZerocoinMint> GetSelectedMints();
+    static std::set<std::string> setSelectedMints;
+    static std::set<CMintMeta> setMints;
+    static std::vector<CMintMeta> GetSelectedMints();
 
 private:
-    Ui::ZPOSQControlDialog *ui;
+    Ui::ZPhrControlDialog *ui;
     WalletModel* model;
     PrivacyDialog* privacyDialog;
 
@@ -45,6 +43,7 @@ private:
         COLUMN_CHECKBOX,
         COLUMN_DENOMINATION,
         COLUMN_PUBCOIN,
+        COLUMN_VERSION,
         COLUMN_CONFIRMATIONS,
         COLUMN_ISSPENDABLE
     };

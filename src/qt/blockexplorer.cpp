@@ -1,10 +1,3 @@
-// Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
-// Copyright (c) 2018-2019 The POSQ developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include "blockexplorer.h"
 #include "bitcoinunits.h"
 #include "chainparams.h"
@@ -57,20 +50,19 @@ static std::string ValueToString(CAmount nValue, bool AllowNegative = false)
     return std::string("<span>") + Str.toUtf8().data() + "</span>";
 }
 
-static std::string ScriptToString(const CScript& Script, bool Long = false, bool Highlight = false)
+static std::string ScriptToString(const CScript& script, bool l = false, bool highlight = false)
 {
-    if (Script.empty())
+    if (script.empty())
         return "unknown";
 
-    CTxDestination Dest;
-    CBitcoinAddress Address;
-    if (ExtractDestination(Script, Dest) && Address.Set(Dest)) {
-        if (Highlight)
-            return "<span class=\"addr\">" + Address.ToString() + "</span>";
+    CTxDestination dest;
+    if (ExtractDestination(script, dest)) {
+        if (highlight)
+            return "<span class=\"addr\">" + EncodeDestination(dest) + "</span>";
         else
-            return makeHRef(Address.ToString());
+            return makeHRef(EncodeDestination(dest));
     } else
-        return Long ? "<pre>" + FormatScript(Script) + "</pre>" : _("Non-standard script");
+        return l ? "<pre>" + FormatScript(script) + "</pre>" : _("Non-standard script");
 }
 
 static std::string TimeToString(uint64_t Time)
@@ -380,9 +372,9 @@ std::string TxToString(uint256 BlockHash, const CTransaction& tx)
     return Content;
 }
 
-std::string AddressToString(const CBitcoinAddress& Address)
+std::string AddressToString(const CTxDestination& dest)
 {
-    std::string TxLabels[] =
+    std::string txLabels[] =
         {
             _("Date"),
             _("Hash"),
@@ -392,9 +384,9 @@ std::string AddressToString(const CBitcoinAddress& Address)
             _("Amount"),
             _("Delta"),
             _("Balance")};
-    std::string TxContent = table + makeHTMLTableRow(TxLabels, sizeof(TxLabels) / sizeof(std::string));
+    std::string txContent = table + makeHTMLTableRow(txLabels, sizeof(txLabels) / sizeof(std::string));
 
-    std::set<COutPoint> PrevOuts;
+    std::set<COutPoint> prevOuts;
     /*
     CScript AddressScript;
     AddressScript.SetDestination(Address.Get());
@@ -425,12 +417,12 @@ std::string AddressToString(const CBitcoinAddress& Address)
         }
     }
     */
-    TxContent += "</table>";
+    txContent += "</table>";
 
-    std::string Content;
-    Content += "<h1>" + _("Transactions to/from") + "&nbsp;<span>" + Address.ToString() + "</span></h1>";
-    Content += TxContent;
-    return Content;
+    std::string content;
+    content += "<h1>" + _("Transactions to/from") + "&nbsp;<span>" + EncodeDestination(dest) + "</span></h1>";
+    content += txContent;
+    return content;
 }
 
 BlockExplorer::BlockExplorer(QWidget* parent) : QMainWindow(parent),
@@ -479,7 +471,7 @@ void BlockExplorer::showEvent(QShowEvent*)
         m_History.push_back(text);
         updateNavButtons();
 
-        if (!GetBoolArg("-txindex", true)) {
+        if (!GetBoolArg("-txindex", false)) {
             QString Warning = tr("Not all transactions will be shown. To view all transactions you need to set txindex=1 in the configuration file (posq.conf).");
             QMessageBox::warning(this, "POSQ Core Blockchain Explorer", Warning, QMessageBox::Ok);
         }
@@ -520,13 +512,12 @@ bool BlockExplorer::switchTo(const QString& query)
     }
 
     // If the query is not an integer, nor a block hash, nor a transaction hash, assume an address
-    CBitcoinAddress Address;
-    Address.SetString(query.toUtf8().constData());
-    if (Address.IsValid()) {
-        std::string Content = AddressToString(Address);
-        if (Content.empty())
+    if (IsValidDestinationString(query.toUtf8().constData())) {
+        CTxDestination dest = DecodeDestination(query.toUtf8().constData());
+        std::string content = EncodeDestination(dest);
+        if (content.empty())
             return false;
-        setContent(Content);
+        setContent(content);
         return true;
     }
 
@@ -557,7 +548,7 @@ void BlockExplorer::setBlock(CBlockIndex* pBlock)
 
 void BlockExplorer::setContent(const std::string& Content)
 {
-    QString CSS = "body {font-size:12px; color:#f8f6f6; bgcolor:#8778dc;}\n a, span { font-family: monospace; }\n span.addr {color:#8778dc; font-weight: bold;}\n table tr td {padding: 3px; border: 1px solid black; background-color: #077aba;}\n td.d0 {font-weight: bold; color:#f8f6f6;}\n h2, h3 { white-space:nowrap; color:#077aba;}\n a { color:#fff; text-decoration:none; }\n a.nav {color:#077aba;}\n";
+    QString CSS = "body {font-size:12px; color:#f8f6f6; bgcolor:#005437;}\n a, span { font-family: monospace; }\n span.addr {color:#005437; font-weight: bold;}\n table tr td {padding: 3px; border: 1px solid black; background-color: #005437;}\n td.d0 {font-weight: bold; color:#f8f6f6;}\n h2, h3 { white-space:nowrap; color:#005437;}\n a { color:#88f6f6; text-decoration:none; }\n a.nav {color:#005437;}\n";
     QString FullContent = "<html><head><style type=\"text/css\">" + CSS + "</style></head>" + "<body>" + Content.c_str() + "</body></html>";
     // printf(FullContent.toUtf8());
 

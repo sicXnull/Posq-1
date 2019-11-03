@@ -10,6 +10,7 @@ DEPENDPATH += . \
               src \
               src/compat \
               src/config \
+              src/consensus \
               src/crypto \
               src/json \
               src/obj \
@@ -28,6 +29,8 @@ DEPENDPATH += . \
               src/qt/test \
               src/secp256k1/include \
               src/secp256k1/src \
+              src/support \
+              src/support/allocators \
               src/test/data \
               src/leveldb/doc/bench \
               src/leveldb/helpers/memenv \
@@ -47,8 +50,11 @@ INCLUDEPATH += . \
                src/qt \
                src/qt/forms \
                src/compat \
+               src/consensus \
                src/secp256k1/include \
                src/leveldb/helpers/memenv \
+               src/support \
+               src/support/allocators \
                src/test/data \
                src/test \
                src/qt/test \
@@ -62,6 +68,7 @@ HEADERS += src/activemasternode.h \
            src/allocators.h \
            src/amount.h \
            src/base58.h \
+           src/bech32.h \
            src/bloom.h \
            src/chain.h \
            src/chainparams.h \
@@ -113,6 +120,8 @@ HEADERS += src/activemasternode.h \
            src/serialize.h \
            src/spork.h \
            src/streams.h \
+           src/support/allocators/zeroafterfree.h \
+           src/support/cleanse.h \
            src/sync.h \
            src/threadsafety.h \
            src/timedata.h \
@@ -130,7 +139,10 @@ HEADERS += src/activemasternode.h \
            src/wallet.h \
            src/wallet_ismine.h \
            src/walletdb.h \
+           src/validationinterface.h \
            src/compat/sanity.h \
+           src/consensus/merkle.h \
+           src/consensus/validation.h \
            src/config/posq-config.h \
            src/crypto/common.h \
            src/crypto/hmac_sha256.h \
@@ -166,7 +178,7 @@ HEADERS += src/activemasternode.h \
            src/primitives/transaction.h \
            src/qt/addressbookpage.h \
            src/qt/addresstablemodel.h \
-           src/qt/askpassphrasedialog.h \
+           src/qt/askpassposqasedialog.h \
            src/qt/bitcoinaddressvalidator.h \
            src/qt/bitcoinamountfield.h \
            src/qt/bitcoingui.h \
@@ -339,7 +351,7 @@ HEADERS += src/activemasternode.h \
            src/qt/rpcconsole.moc \
            src/secp256k1/src/secp256k1.c
 FORMS += src/qt/forms/addressbookpage.ui \
-         src/qt/forms/askpassphrasedialog.ui \
+         src/qt/forms/askpassposqasedialog.ui \
          src/qt/forms/coincontroldialog.ui \
          src/qt/forms/obfuscationconfig.ui \
          src/qt/forms/editaddressdialog.ui \
@@ -361,6 +373,7 @@ SOURCES += src/activemasternode.cpp \
            src/allocators.cpp \
            src/amount.cpp \
            src/base58.cpp \
+           src/bech32.cpp \
            src/bloom.cpp \
            src/chain.cpp \
            src/chainparams.cpp \
@@ -418,6 +431,7 @@ SOURCES += src/activemasternode.cpp \
            src/rpcserver.cpp \
            src/rpcwallet.cpp \
            src/spork.cpp \
+           src/support/cleanse.cpp \
            src/sync.cpp \
            src/timedata.cpp \
            src/txdb.cpp \
@@ -430,6 +444,8 @@ SOURCES += src/activemasternode.cpp \
            src/wallet.cpp \
            src/wallet_ismine.cpp \
            src/walletdb.cpp \
+           src/validationinterface.cpp \
+           src/consensus/merkle.cpp \
            src/compat/glibc_compat.cpp \
            src/compat/glibc_sanity.cpp \
            src/compat/glibcxx_compat.cpp \
@@ -461,7 +477,7 @@ SOURCES += src/activemasternode.cpp \
            src/primitives/transaction.cpp \
            src/qt/addressbookpage.cpp \
            src/qt/addresstablemodel.cpp \
-           src/qt/askpassphrasedialog.cpp \
+           src/qt/askpassposqasedialog.cpp \
            src/qt/bitcoinaddressvalidator.cpp \
            src/qt/bitcoinamountfield.cpp \
            src/qt/bitcoingui.cpp \
@@ -541,10 +557,10 @@ SOURCES += src/activemasternode.cpp \
            src/test/netbase_tests.cpp \
            src/test/pmt_tests.cpp \
            src/test/rpc_tests.cpp \
-           src/test/rpc_wallet_tests.cpp \
            src/test/sanity_tests.cpp \
            src/test/script_P2SH_tests.cpp \
            src/test/script_tests.cpp \
+           src/test/script_standard_tests.cpp \
            src/test/scriptnum_tests.cpp \
            src/test/serialize_tests.cpp \
            src/test/sighash_tests.cpp \

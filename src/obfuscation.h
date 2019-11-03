@@ -1,8 +1,8 @@
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
-// Copyright (c) 2018-2019 The POSQ developers
+// Copyright (c) 2015-2017 The PIVX developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
 #ifndef OBFUSCATION_H
 #define OBFUSCATION_H
 
@@ -17,7 +17,6 @@ class CTxIn;
 class CObfuscationPool;
 class CObfuScationSigner;
 class CMasterNodeVote;
-class CBitcoinAddress;
 class CObfuscationQueue;
 class CObfuscationBroadcastTx;
 class CActiveMasternode;
@@ -271,7 +270,7 @@ private:
 
     int64_t lastTimeChanged; // last time the 'state' changed, in UTC milliseconds
 
-    unsigned int state; // should be one of the POOL_STATUS_POSQ values
+    unsigned int state; // should be one of the POOL_STATUS_XXX values
     unsigned int entriesCount;
     unsigned int lastEntryAccepted;
     unsigned int countEntriesAccepted;

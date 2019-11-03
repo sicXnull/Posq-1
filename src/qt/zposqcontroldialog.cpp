@@ -1,27 +1,27 @@
-// Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
-// Copyright (c) 2018-2019 The POSQ developers
+// Copyright (c) 2017 The PIVX developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
 #include "zposqcontroldialog.h"
 #include "ui_zposqcontroldialog.h"
 
+#include "accumulators.h"
 #include "main.h"
 #include "walletmodel.h"
 
 using namespace std;
+using namespace libzerocoin;
 
-std::list<std::string> ZPOSQControlDialog::listSelectedMints;
-std::list<CZerocoinMint> ZPOSQControlDialog::listMints;
+std::set<std::string> ZPhrControlDialog::setSelectedMints;
+std::set<CMintMeta> ZPhrControlDialog::setMints;
 
-ZPOSQControlDialog::ZPOSQControlDialog(QWidget *parent) :
+ZPhrControlDialog::ZPhrControlDialog(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::ZPOSQControlDialog),
+    ui(new Ui::ZPhrControlDialog),
     model(0)
 {
     ui->setupUi(this);
-    listMints.clear();
+    setMints.clear();
     privacyDialog = (PrivacyDialog*)parent;
 
     // click on checkbox
@@ -31,19 +31,19 @@ ZPOSQControlDialog::ZPOSQControlDialog(QWidget *parent) :
     connect(ui->pushButtonAll, SIGNAL(clicked()), this, SLOT(ButtonAllClicked()));
 }
 
-ZPOSQControlDialog::~ZPOSQControlDialog()
+ZPhrControlDialog::~ZPhrControlDialog()
 {
     delete ui;
 }
 
-void ZPOSQControlDialog::setModel(WalletModel *model)
+void ZPhrControlDialog::setModel(WalletModel *model)
 {
     this->model = model;
     updateList();
 }
 
 //Update the tree widget
-void ZPOSQControlDialog::updateList()
+void ZPhrControlDialog::updateList()
 {
     // need to prevent the slot from being called each time something is changed
     ui->treeWidget->blockSignals(true);
@@ -64,27 +64,30 @@ void ZPOSQControlDialog::updateList()
     }
 
     // select all unused coins - including not mature. Update status of coins too.
-    std::list<CZerocoinMint> list;
-    model->listZerocoinMints(list, true, false, true);
-    this->listMints = list;
+    std::set<CMintMeta> set;
+    model->listZerocoinMints(set, true, false, true);
+    this->setMints = set;
 
     //populate rows with mint info
     int nBestHeight = chainActive.Height();
-    for(const CZerocoinMint mint : listMints) {
-        // assign this mint to the correct denomination in the tree view.
-        libzerocoin::CoinDenomination denom = mint.GetDenomination();
+    map<CoinDenomination, int> mapMaturityHeight = GetMintMaturityHeight();
+    for(const CMintMeta& mint : setMints) {
+        // assign this mint to the correct denomination in the tree view
+        libzerocoin::CoinDenomination denom = mint.denom;
         QTreeWidgetItem *itemMint = new QTreeWidgetItem(ui->treeWidget->topLevelItem(mapDenomPosition.at(denom)));
 
         // if the mint is already selected, then it needs to have the checkbox checked
-        std::string strPubCoin = mint.GetValue().GetHex();
-        itemMint->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
-        if(count(listSelectedMints.begin(), listSelectedMints.end(), strPubCoin))
+        std::string strPubCoinHash = mint.hashPubcoin.GetHex();
+        if (setSelectedMints.count(strPubCoinHash))
             itemMint->setCheckState(COLUMN_CHECKBOX, Qt::Checked);
+        else
+            itemMint->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
 
-        itemMint->setText(COLUMN_DENOMINATION, QString::number(mint.GetDenomination()));
-        itemMint->setText(COLUMN_PUBCOIN, QString::fromStdString(strPubCoin));
+        itemMint->setText(COLUMN_DENOMINATION, QString::number(mint.denom));
+        itemMint->setText(COLUMN_PUBCOIN, QString::fromStdString(strPubCoinHash));
+        itemMint->setText(COLUMN_VERSION, QString::number(mint.nVersion));
 
-        int nConfirmations = (mint.GetHeight() ? nBestHeight - mint.GetHeight() : 0);
+        int nConfirmations = (mint.nHeight ? nBestHeight - mint.nHeight : 0);
         if (nConfirmations < 0) {
             // Sanity check
             nConfirmations = 0;
@@ -92,37 +95,26 @@ void ZPOSQControlDialog::updateList()
 
         itemMint->setText(COLUMN_CONFIRMATIONS, QString::number(nConfirmations));
 
-        // check to make sure there are at least 3 other mints added to the accumulators after this
-        int nMintsAdded = 0;
-        if(mint.GetHeight() != 0 && mint.GetHeight() < nBestHeight - 2) {
-            CBlockIndex *pindex = chainActive[mint.GetHeight() + 1];
-            
-            int nHeight2CheckpointsDeep = nBestHeight - (nBestHeight % 10) - 20;
-            while (pindex->nHeight < nHeight2CheckpointsDeep) { // 20 just to make sure that its at least 2 checkpoints from the top block
-                nMintsAdded += count(pindex->vMintDenominationsInBlock.begin(), pindex->vMintDenominationsInBlock.end(), mint.GetDenomination());
-                if(nMintsAdded >= Params().Zerocoin_RequiredAccumulation())
-                    break;
-                pindex = chainActive[pindex->nHeight + 1];
-            }
-        }
+        // check for maturity
+        bool isMature = false;
+        if (mapMaturityHeight.count(mint.denom))
+            isMature = mint.nHeight < mapMaturityHeight.at(denom);
 
         // disable selecting this mint if it is not spendable - also display a reason why
-        bool fSpendable = nMintsAdded >= Params().Zerocoin_RequiredAccumulation() && nConfirmations >= Params().Zerocoin_MintRequiredConfirmations();
+        bool fSpendable = isMature && nConfirmations >= Params().Zerocoin_MintRequiredConfirmations();
         if(!fSpendable) {
             itemMint->setDisabled(true);
             itemMint->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
 
             //if this mint is in the selection list, then remove it
-            auto it = std::find(listSelectedMints.begin(), listSelectedMints.end(), mint.GetValue().GetHex());
-            if (it != listSelectedMints.end()) {
-                listSelectedMints.erase(it);
-            }
+            if (setSelectedMints.count(strPubCoinHash))
+                setSelectedMints.erase(strPubCoinHash);
 
             string strReason = "";
             if(nConfirmations < Params().Zerocoin_MintRequiredConfirmations())
                 strReason = strprintf("Needs %d more confirmations", Params().Zerocoin_MintRequiredConfirmations() - nConfirmations);
             else
-                strReason = strprintf("Needs %d more mints added to network", Params().Zerocoin_RequiredAccumulation() - nMintsAdded);
+                strReason = strprintf("Needs %d more mints added to network", Params().Zerocoin_RequiredAccumulation());
 
             itemMint->setText(COLUMN_ISSPENDABLE, QString::fromStdString(strReason));
         } else {
@@ -135,60 +127,57 @@ void ZPOSQControlDialog::updateList()
 }
 
 // Update the list when a checkbox is clicked
-void ZPOSQControlDialog::updateSelection(QTreeWidgetItem* item, int column)
+void ZPhrControlDialog::updateSelection(QTreeWidgetItem* item, int column)
 {
     // only want updates from non top level items that are available to spend
     if (item->parent() && column == COLUMN_CHECKBOX && !item->isDisabled()){
 
         // see if this mint is already selected in the selection list
         std::string strPubcoin = item->text(COLUMN_PUBCOIN).toStdString();
-        auto iter = std::find(listSelectedMints.begin(), listSelectedMints.end(), strPubcoin);
-        bool fSelected = iter != listSelectedMints.end();
+        bool fSelected = setSelectedMints.count(strPubcoin);
 
         // set the checkbox to the proper state and add or remove the mint from the selection list
         if (item->checkState(COLUMN_CHECKBOX) == Qt::Checked) {
             if (fSelected) return;
-            listSelectedMints.emplace_back(strPubcoin);
+            setSelectedMints.insert(strPubcoin);
         } else {
             if (!fSelected) return;
-            listSelectedMints.erase(iter);
+            setSelectedMints.erase(strPubcoin);
         }
         updateLabels();
     }
 }
 
 // Update the Quantity and Amount display
-void ZPOSQControlDialog::updateLabels()
+void ZPhrControlDialog::updateLabels()
 {
     int64_t nAmount = 0;
-    for (const CZerocoinMint mint : listMints) {
-        if (count(listSelectedMints.begin(), listSelectedMints.end(), mint.GetValue().GetHex())) {
-            nAmount += mint.GetDenomination();
-        }
+    for (const CMintMeta& mint : setMints) {
+        if (setSelectedMints.count(mint.hashPubcoin.GetHex()))
+            nAmount += mint.denom;
     }
 
     //update this dialog's labels
-    ui->labelZPOSQ_int->setText(QString::number(nAmount));
-    ui->labelQuantity_int->setText(QString::number(listSelectedMints.size()));
+    ui->labelZPhr_int->setText(QString::number(nAmount));
+    ui->labelQuantity_int->setText(QString::number(setSelectedMints.size()));
 
     //update PrivacyDialog labels
-    privacyDialog->setZPOSQControlLabels(nAmount, listSelectedMints.size());
+    privacyDialog->setZPhrControlLabels(nAmount, setSelectedMints.size());
 }
 
-std::vector<CZerocoinMint> ZPOSQControlDialog::GetSelectedMints()
+std::vector<CMintMeta> ZPhrControlDialog::GetSelectedMints()
 {
-    std::vector<CZerocoinMint> listReturn;
-    for (const CZerocoinMint mint : listMints) {
-        if (count(listSelectedMints.begin(), listSelectedMints.end(), mint.GetValue().GetHex())) {
+    std::vector<CMintMeta> listReturn;
+    for (const CMintMeta& mint : setMints) {
+        if (setSelectedMints.count(mint.hashPubcoin.GetHex()))
             listReturn.emplace_back(mint);
-        }
     }
 
     return listReturn;
 }
 
 // select or deselect all of the mints
-void ZPOSQControlDialog::ButtonAllClicked()
+void ZPhrControlDialog::ButtonAllClicked()
 {
     ui->treeWidget->blockSignals(true);
     Qt::CheckState state = Qt::Checked;
@@ -203,10 +192,10 @@ void ZPOSQControlDialog::ButtonAllClicked()
     ui->treeWidget->clear();
 
     if(state == Qt::Checked) {
-        for(const CZerocoinMint mint : listMints)
-            listSelectedMints.emplace_back(mint.GetValue().GetHex());
+        for(const CMintMeta& mint : setMints)
+            setSelectedMints.insert(mint.hashPubcoin.GetHex());
     } else {
-        listSelectedMints.clear();
+        setSelectedMints.clear();
     }
 
     updateList();

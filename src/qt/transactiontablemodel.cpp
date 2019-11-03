@@ -1,7 +1,4 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
-// Copyright (c) 2018-2019 The POSQ developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -345,9 +342,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord* wtx) const
     case TransactionRecord::SendToSelf:
         return tr("Payment to yourself");
     case TransactionRecord::StakeMint:
-        return tr("POSQ Stake");
-    //case TransactionRecord::StakeZPOSQ:
-        //return tr("zPOSQ Stake");
+        return tr("Minted");
     case TransactionRecord::Generated:
         return tr("Mined");
     case TransactionRecord::ObfuscationDenominate:
@@ -361,15 +356,15 @@ QString TransactionTableModel::formatTxType(const TransactionRecord* wtx) const
     case TransactionRecord::Obfuscated:
         return tr("Obfuscated");
     case TransactionRecord::ZerocoinMint:
-        return tr("Converted POSQ to zPOSQ");
+        return tr("Converted Phr to zPhr");
     case TransactionRecord::ZerocoinSpend:
-        return tr("Spent zPOSQ");
+        return tr("Spent zPhr");
     case TransactionRecord::RecvFromZerocoinSpend:
-        return tr("Received POSQ from zPOSQ");
-    case TransactionRecord::ZerocoinSpend_Change_zPOSQ:
-        return tr("Minted Change as zPOSQ from zPOSQ Spend");
+        return tr("Received Phr from zPhr");
+    case TransactionRecord::ZerocoinSpend_Change_zPhr:
+        return tr("Minted Change as zPhr from zPhr Spend");
     case TransactionRecord::ZerocoinSpend_FromMe:
-        return tr("Converted zPOSQ to POSQ");
+        return tr("Converted zPhr to Phr");
 
     default:
         return QString();
@@ -381,7 +376,6 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord* wtx
     switch (wtx->type) {
     case TransactionRecord::Generated:
     case TransactionRecord::StakeMint:
-    //case TransactionRecord::StakeZPOSQ:
     case TransactionRecord::MNReward:
         return QIcon(":/icons/tx_mined");
     case TransactionRecord::RecvWithObfuscation:
@@ -424,10 +418,8 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord* wtx, b
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address) + watchAddress;
     case TransactionRecord::ZerocoinMint:
-    case TransactionRecord::ZerocoinSpend_Change_zPOSQ:
-        return tr("Anonymous (zPOSQ Transaction)");
-    //case TransactionRecord::StakeZPOSQ:
-        //return tr("Anonymous (zPOSQ Stake)");
+    case TransactionRecord::ZerocoinSpend_Change_zPhr:
+        return tr("zPhr Accumulator");
     case TransactionRecord::SendToSelf:
     default:
         return tr("(n/a)") + watchAddress;
@@ -437,6 +429,8 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord* wtx, b
 QVariant TransactionTableModel::addressColor(const TransactionRecord* wtx) const
 {
     switch (wtx->type) {
+    case TransactionRecord::SendToSelf:
+        return COLOR_BAREADDRESS;
     // Show addresses without label in a less visible color
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
@@ -446,7 +440,6 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord* wtx) const
         if (label.isEmpty())
             return COLOR_BAREADDRESS;
     }
-    case TransactionRecord::SendToSelf:
     default:
         // To avoid overriding above conditional formats a default text color for this QTableView is not defined in stylesheet,
         // so we must always return a color here
@@ -494,7 +487,7 @@ QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord* wtx)
         return QIcon(":/icons/transaction_conflicted");
     case TransactionStatus::Immature: {
         int total = wtx->status.depth + wtx->status.matures_in;
-        int part = (wtx->status.depth * 5 / total) + 1;
+        int part = (wtx->status.depth * 4 / total) + 1;
         return QIcon(QString(":/icons/transaction_%1").arg(part));
     }
     case TransactionStatus::MaturesWarning:
@@ -574,15 +567,7 @@ QVariant TransactionTableModel::data(const QModelIndex& index, int role) const
     case Qt::TextAlignmentRole:
         return column_alignments[index.column()];
     case Qt::ForegroundRole:
-        // Minted
-        //if (rec->type == TransactionRecord::Generated || rec->type == TransactionRecord::StakeMint ||
-                //rec->type == TransactionRecord::StakeZPOSQ || rec->type == TransactionRecord::MNReward) {
-            //if (rec->status.status == TransactionStatus::Conflicted || rec->status.status == TransactionStatus::NotAccepted)
-                //return COLOR_ORPHAN;
-            //else
-                //return COLOR_STAKE;
-        //}
-        // Conflicted tx
+        // Conflicted, most probably orphaned
         if (rec->status.status == TransactionStatus::Conflicted || rec->status.status == TransactionStatus::NotAccepted) {
             return COLOR_CONFLICTED;
         }
