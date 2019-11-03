@@ -101,7 +101,18 @@ static const Checkpoints::CCheckpointData dataRegtest = {
 libzerocoin::ZerocoinParams* CChainParams::Zerocoin_Params() const
 {
 	assert(this);
-	static CBigNum bnTrustedModulus(zerocoinModulus);
+    static CBigNum bnTrustedModulus;
+    bnTrustedModulus.SetDec(zerocoinModulus);
+    static libzerocoin::ZerocoinParams ZCParams = libzerocoin::ZerocoinParams(bnTrustedModulus);
+
+    return &ZCParams;
+}
+
+libzerocoin::ZerocoinParams* CChainParams::OldZerocoin_Params() const
+{
+    assert(this);
+    static CBigNum bnTrustedModulus;
+    bnTrustedModulus.SetHex(zerocoinModulus);
 	static libzerocoin::ZerocoinParams ZCParams = libzerocoin::ZerocoinParams(bnTrustedModulus);
 
 	return &ZCParams;
@@ -195,6 +206,7 @@ public:
 		base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x02)(0x21)(0x31)(0x2B).convert_to_container<std::vector<unsigned char> >();
 		// BIP44 coin type is from https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 		nExtCoinType = 475;
+		bech32_hrp = "pq";
 
 		convertSeed6(vFixedSeeds, pnSeed6_main, ARRAYLEN(pnSeed6_main));
 
@@ -224,6 +236,7 @@ public:
             "0b6f8a7449b345ffc730415c64c628c078ef701e1559bc6b965ef2eb1deecc74611fb116fee980c9cea978d8f1f37d66d05ad56f52f52099"
             "5b7f4e436c365f8f7e44eaf91447f48d8fc211f8e874fef249076425aa9cfae10fc3a347432028ff9ab29c3a6346ade6fe21f36254b9dc26"
             "09eb03ddf7c9a9da3b44bbe48ca7fe59daac240b384da5b29fb5c522a9c0600f11eb7a45796a6f30c4819b6573ea38e735d9b7c9e95c49";
+	        nZerocoinLastOldParams = 408889; // changeme
 		nMaxZerocoinSpendsPerTransaction = 7; // Assume about 20kb each
 		nMinZerocoinMintFee = 1 * ZCENT;      //high fee required for zerocoin mints
 		nMintRequiredConfirmations = 20;      //the maximum amount of confirmations until accumulated in 19
@@ -295,6 +308,7 @@ public:
 		nMaxMoneyOut = 100000000 * COIN;
 		nZerocoinStartHeight = 201;
 		nZerocoinStartTime = 1534438799;
+		nZerocoinLastOldParams = 100000000;
 		nBlockEnforceSerialRange = 1; //Enforce serial range starting this block
 		nBlockRecalculateAccumulators = 9908000; //Trigger a recalculation of accumulators
 		nBlockFirstFraudulent = 9891737; //First block that bad serials emerged
@@ -326,6 +340,7 @@ public:
 		base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x3a)(0x80)(0x58)(0x37).convert_to_container<std::vector<unsigned char> >();
 		// Testnet posq BIP44 coin type is '1' (All coin's testnet default)
 		nExtCoinType = 1;
+		bech32_hrp = "tp";
 
 		convertSeed6(vFixedSeeds, pnSeed6_test, ARRAYLEN(pnSeed6_test));
 
@@ -374,6 +389,10 @@ public:
 		genesis.nTime = 1546206278;
 		genesis.nBits = 504365040;
 		genesis.nNonce = 348846;
+		nMaturity = 0;
+		nLastPOWBlock = 999999999; // PoS complicates Regtest because of timing issues
+		nZerocoinLastOldParams = 499;
+		nZerocoinStartHeight = 100;
 
 
 		hashGenesisBlock = genesis.GetHash();
@@ -383,6 +402,7 @@ public:
 		assert(hashGenesisBlock == uint256("0x00000334ad7d19ac18efcc77b3bd54e62e16bb8ad96732cf8d01425557f8d78e"));
 		assert(genesis.hashMerkleRoot == uint256("0x5631b0ce092246abb7f7cbf0a6ee315bd7cf41092a714c7ece4c1aed15dd3995"));
 
+		bech32_hrp = "psqt";
 		vFixedSeeds.clear(); //! Testnet mode doesn't have any fixed seeds.
 		vSeeds.clear();      //! Testnet mode doesn't have any DNS seeds.
 
@@ -394,6 +414,7 @@ public:
 		fRequireStandard = false;
 		fMineBlocksOnDemand = true;
 		fTestnetToBeDeprecatedFieldRPC = false;
+		nRequiredAccumulation = 1;
 	}
 	const Checkpoints::CCheckpointData& Checkpoints() const
 	{

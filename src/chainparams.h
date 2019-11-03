@@ -76,6 +76,7 @@ public:
     int64_t TargetSpacing() const { return nTargetSpacing; }
     int64_t Interval() const { return nTargetTimespan / nTargetSpacing; }
     int COINBASE_MATURITY() const { return nMaturity; }
+    unsigned int StakeMaturity() const { return nStakeMaturity; }
     CAmount MaxMoneyOut() const { return nMaxMoneyOut; }
     /** The masternode count that we will allow the see-saw reward payments to be off by */
     int MasternodeCountDrift() const { return nMasternodeCountDrift; }
@@ -85,6 +86,7 @@ public:
     bool TestnetToBeDeprecatedFieldRPC() const { return fTestnetToBeDeprecatedFieldRPC; }
     /** Return the BIP70 network string (main, test or regtest) */
     std::string NetworkIDString() const { return strNetworkID; }
+    const std::string& Bech32HRP() const { return bech32_hrp; }
     const std::vector<CDNSSeedData>& DNSSeeds() const { return vSeeds; }
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
     int ExtCoinType() const { return nExtCoinType; }
@@ -106,7 +108,9 @@ public:
 
     /** Zerocoin **/
     std::string Zerocoin_Modulus() const { return zerocoinModulus; }
+    std::string OldZerocoin_Modulus() const { return oldZerocoinModulus; }
     libzerocoin::ZerocoinParams* Zerocoin_Params() const;
+    libzerocoin::ZerocoinParams* OldZerocoin_Params() const;
     int Zerocoin_MaxSpendsPerTransaction() const { return nMaxZerocoinSpendsPerTransaction; }
     CAmount Zerocoin_MintFee() const { return nMinZerocoinMintFee; }
     int Zerocoin_MintRequiredConfirmations() const { return nMintRequiredConfirmations; }
@@ -122,7 +126,7 @@ public:
     int Zerocoin_Block_RecalculateAccumulators() const { return nBlockRecalculateAccumulators; }
     int Zerocoin_Block_FirstFraudulent() const { return nBlockFirstFraudulent; }
     int Zerocoin_Block_LastGoodCheckpoint() const { return nBlockLastGoodCheckpoint; }
-    int Zerocoin_StartTime() const { return nZerocoinStartTime; }
+    int Zerocoin_LastOldParams() const { return nZerocoinLastOldParams; }
     int Zerocoin_AccumulatorStartHeight() const { return nAccumulatorStartHeight; }
 	//Central Collateral Amount
 	int MasternodeCollateralAmt() const { return nMasternodeCollateralAmt; }
@@ -154,10 +158,12 @@ protected:
     int nLastPOWBlock;
     int nMasternodeCountDrift;
     int nMaturity;
+    unsigned int nStakeMaturity;
     int nModifierUpdateBlock;
     CAmount nMaxMoneyOut;
     int nMinerThreads;
     std::vector<CDNSSeedData> vSeeds;
+    std::string bech32_hrp;
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
     int nExtCoinType;
     CBaseChainParams::Network networkID;
@@ -184,6 +190,7 @@ protected:
     std::string strObfuscationPoolDummyAddress;
     int64_t nStartMasternodePayments;
     std::string zerocoinModulus;
+    std::string oldZerocoinModulus;
     int nMaxZerocoinSpendsPerTransaction;
     CAmount nMinZerocoinMintFee;
     int nMintRequiredConfirmations;
@@ -196,8 +203,9 @@ protected:
     int nBlockRecalculateAccumulators;
     int nBlockFirstFraudulent;
     int nBlockLastGoodCheckpoint;
-    int nZerocoinStartTime;
     int nAccumulatorStartHeight;
+    int nZerocoinLastOldParams;
+
 };
 
 /**
