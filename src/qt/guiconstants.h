@@ -10,7 +10,7 @@
 /* Milliseconds between model updates */
 static const int MODEL_UPDATE_DELAY = 1000;
 
-/* AskPassposqaseDialog -- Maximum passposqase length */
+/* AskPassphraseDialog -- Maximum passphrase length */
 static const int MAX_PASSPOSQASE_SIZE = 1024;
 
 /* POSQ GUI -- Size of icons in status bar */

@@ -491,7 +491,7 @@ UniValue bip38encrypt(const UniValue& params, bool fHelp)
             "\nEncrypts a private key corresponding to 'posqaddress'.\n"
             "\nArguments:\n"
             "1. \"posqaddress\"   (string, required) The posq address for the private key (you must hold the key already)\n"
-            "2. \"passposqase\"   (string, required) The passposqase you want the private key to be encrypted with - Valid special chars: !#$%&'()*+,-./:;<=>?`{|}~ \n"
+            "2. \"passphrase\"   (string, required) The passphrase you want the private key to be encrypted with - Valid special chars: !#$%&'()*+,-./:;<=>?`{|}~ \n"
             "\nResult:\n"
             "\"key\"                (string) The encrypted private key\n"
             "\nExamples:\n");
@@ -501,7 +501,7 @@ UniValue bip38encrypt(const UniValue& params, bool fHelp)
     EnsureWalletIsUnlocked();
 
     string strAddress = params[0].get_str();
-    string strPassposqase = params[1].get_str();
+    string strPassphrase = params[1].get_str();
 
     if (!IsValidDestinationString(strAddress))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid POSQ address");
@@ -514,7 +514,7 @@ UniValue bip38encrypt(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
 
     uint256 privKey = vchSecret.GetPrivKey_256();
-    string encryptedOut = BIP38_Encrypt(strAddress, strPassposqase, privKey, vchSecret.IsCompressed());
+    string encryptedOut = BIP38_Encrypt(strAddress, strPassphrase, privKey, vchSecret.IsCompressed());
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("Addess", strAddress));
@@ -531,7 +531,7 @@ UniValue bip38decrypt(const UniValue& params, bool fHelp)
             "\nDecrypts and then imports password protected private key.\n"
             "\nArguments:\n"
             "1. \"encryptedkey\"   (string, required) The encrypted private key\n"
-            "2. \"passposqase\"   (string, required) The passposqase you want the private key to be encrypted with\n"
+            "2. \"passphrase\"   (string, required) The passphrase you want the private key to be encrypted with\n"
 
             "\nResult:\n"
             "\"key\"                (string) The decrypted private key\n"
@@ -541,13 +541,13 @@ UniValue bip38decrypt(const UniValue& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
-    /** Collect private key and passposqase **/
+    /** Collect private key and passphrase **/
     string strKey = params[0].get_str();
-    string strPassposqase = params[1].get_str();
+    string strPassphrase = params[1].get_str();
 
     uint256 privKey;
     bool fCompressed;
-    if (!BIP38_Decrypt(strPassposqase, strKey, privKey, fCompressed))
+    if (!BIP38_Decrypt(strPassphrase, strKey, privKey, fCompressed))
         throw JSONRPCError(RPC_WALLET_ERROR, "Failed To Decrypt");
 
     UniValue result(UniValue::VOBJ);

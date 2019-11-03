@@ -433,8 +433,8 @@ static const CRPCCommand vRPCCommands[] =
         {"wallet", "settxfee", &settxfee, true, false, true},
         {"wallet", "signmessage", &signmessage, true, false, true},
         {"wallet", "walletlock", &walletlock, true, false, true},
-        {"wallet", "walletpassposqasechange", &walletpassposqasechange, true, false, true},
-        {"wallet", "walletpassposqase", &walletpassposqase, true, false, true},
+        {"wallet", "walletpassphrasechange", &walletpassphrasechange, true, false, true},
+        {"wallet", "walletpassphrase", &walletpassphrase, true, false, true},
 
         {"zerocoin", "getzerocoinbalance", &getzerocoinbalance, false, false, true},
         {"zerocoin", "listmintedzerocoins", &listmintedzerocoins, false, false, true},

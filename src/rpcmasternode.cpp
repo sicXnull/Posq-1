@@ -276,7 +276,7 @@ UniValue masternodeconnect(const UniValue& params, bool fHelp)
             "1. \"address\"     (string, required) IP or net address to connect to\n"
 
             "\nExamples:\n" +
-            HelpExampleCli("masternodeconnect", "\"192.168.0.6:11771\"") + HelpExampleRpc("masternodeconnect", "\"192.168.0.6:11771\""));
+            HelpExampleCli("masternodeconnect", "\"192.168.0.6:5510\"") + HelpExampleRpc("masternodeconnect", "\"192.168.0.6:5510\""));
 
     std::string strAddress = params[0].get_str();
 
@@ -881,7 +881,7 @@ UniValue createmasternodebroadcast(const UniValue& params, bool fHelp)
         throw runtime_error(
             "createmasternodebroadcast \"command\" ( \"alias\")\n"
             "\nCreates a masternode broadcast message for one or all masternodes configured in masternode.conf\n" +
-            HelpRequiringPassposqase() + "\n"
+            HelpRequiringPassphrase() + "\n"
 
             "\nArguments:\n"
             "1. \"command\"      (string, required) \"alias\" for single masternode, \"all\" for all masternodes\n"
